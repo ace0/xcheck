@@ -1,5 +1,7 @@
 # xCheck
-xCheck manages a protected registry of names and birthdates and permits the registry to be updated and queried securely. xCheck is designed to store infectious disease reports in a protected state (using an iterated cryptographic hash function and a local secret). Queries against the registry consist of a CSV file of patient names and birthdates. These are encrypted under a public key for the registry and transferred to the registry via secure file transfer protocol (SFTP).
+xCheck manages a protected registry of names and birthdates and permits the registry to be updated and queried securely. A single organization manages a registry identifying information (name, birthdate) for patients that have tested positive for an infectious disease. Separate health care providers submit queries to the registry that contain identifying information for patients that have recently visited a facility. The regsitry receives these queries, checks them against the registry, and identifies any matches. If a match is found the registry can notify the provider. Notification is outside the scope of xCheck--xCheck takes care of securing the registry, queries, and performs matching logic.
+
+xCheck corrects for some common typographical and date reporting errors. For name matching, corrections are: name inversion (switching first-last names), ignoring capitalization differences and whitespace differences ("von halderan" and "VonHalderan" are name matches). If a name match is found and an exact birthdate match is found, xCheck reports a "complete match". If no complete match is found, but a name mathc is present, xCheck finds "partial matches". A partial match is a name match (including corrections described above) and a birthdate with one of the following corrections: day-month swap, +-1 day-of-month, +-10 years.
 
 ## Quickstart for healthcare providers to query the registry
 ### Enroll with with registry
@@ -53,3 +55,21 @@ sftp server host key [~/.ssh/sftp.pub]:
 Generating new registry keys (this takes a few seconds)
 Done! See settings.json to make changes
 ```
+
+## Security of xCheck
+xCheck uses a combination of techniques to protect registry entries and queries uploaded to the registry.
+
+#### Enrollment of authorized users for query uploads
+Query uploads can only be performed by authorizes users. A healthcare provider that wishes to enroll creates an SSH keypair and emails with an enrollment request to the registry operator. The registry operator confirms the identity of the healthcare provider (through phone call and/or personal references), and adds the provider's public key to the SFTP server's list of authorized users.
+
+#### Upload authorized by public key authentication
+Public key authentication protects SFTP connections. It is more secure and less prone to error or secret compromise than password-based authentication.
+
+#### Uploads are protected in-transit
+SFTP uses the SSH protocol to protect communications with strong cryptography.
+
+#### Patient information in queries protected
+Patient information (name and birthdate) are further protected using public key encryption. Providers can encrypt query files using the registry's publc key.
+
+LEFT OFF DESCRIBING SECURITY FEATURES
+
