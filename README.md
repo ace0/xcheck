@@ -36,3 +36,20 @@ echo "sample,sample,2009-05-01" >> testupload.csv
 xcheck upload ./testupload.csv
 ```
 
+## Establishing your own registry
+xCheck is free, open-source software. These instructions outline how to run and manage your own registry.
+- Setup an SFTP server that use public key authentication (not password authentication
+- User accounts on the SFTP server should have only PUT permissions
+- Fork this repository and clone it to the SFTP server
+- Use `newregistry` command to establish a new registry or edit `settings.json` for manual configuration
+
+Example:
+```
+$ xcheck newregistrykey 
+Delete previous registry, settings, and keys? [y/N] y
+sftp server address [127.0.0.1:23]: 123.456.8.5:23
+Path to sftp server uploads [~/sftp/]: ~/var/data/
+sftp server host key [~/.ssh/sftp.pub]: 
+Generating new registry keys (this takes a few seconds)
+Done! See settings.json to make changes
+```
