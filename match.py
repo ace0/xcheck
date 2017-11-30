@@ -7,8 +7,10 @@ from base64 import urlsafe_b64encode as b64enc
 from base64 import urlsafe_b64decode as b64dec
 from datetime import date
 from datetime import datetime
+from tempfile import NamedTemporaryFile
 import csv
 import pytest
+
 
 defaultRegistryFile="./registry"
 
@@ -26,21 +28,33 @@ def processQueryFile(queryfile, registryfile=defaultRegistryFile):
     cMatchCount, pMatchCount = (0,0)
 
     # Process the query file
+    for (name1, name2, birthdate) in readAndValidateQueryfile(queryfile):
+        cMatch, pMatch = query(registry, name1, name2, birthdate)
+        cMatchCount += int(cMatch)
+        pMatchCount += int(pMatch)
+
+    print "Found {} complete matches, {} partial matches"
+    return cMatchCount, pMatchCount
+
+def readAndValidateQueryfile(queryfile):
+    """
+    Reads and validates a query.csv. Requires a well-formed header row
+    and converts text dates to date objects.
+    yields: (name1, name2, date(birthdate))
+    """
     with open(queryfile, 'rb') as f:
-        # First, verify the header row is as expected as a sanity check
-        hdr = f.next()
+        reader = csv.reader(f)
+
+        # Verify the header row is as expected as a sanity check
+        hdr = reader.next()
         if hdr != ["name1", "name2", "birthdate"]:
             raise ValueError("The file '{}' is incorrectly formatted. Header row does not match expected header row.".format(queryfile))
 
         # Then, process each line as a query
-        for (name1, name2, birthdate) in f:
-            cMatch, pMatch = query(name1, name2, birthdate)
-            cMatchCount += int(cMatch)
-            pMatchCount += int(pMatch)
+        for [name1, name2, birthdate] in reader:
+            yield name1, name2, dt(birthdate)
 
-    print "Found {} complete matches, {} partial matches"
-
-def query(name1, name2, birthdate, registry, output=True):
+def query(registry, name1, name2, birthdate, output=True):
     """
     Performs complete and partial matching of a given entry against a 
     registry. 
@@ -132,15 +146,13 @@ def _appendRegistryText(textEntries, registryfile=defaultRegistryFile):
 
 def dt(txt, fmt='%Y-%m-%d'):
     """
-    Parse a text in YYYY-mm-dd format and returns a datetime.date object if
-    it's a valid date. Returns None otherwise.
+    Parse a text in YYYY-mm-dd format and returns a datetime.date.
     """
     return datetime.strptime(txt, fmt).date()
 
 def loadRegistry(registryfile=defaultRegistryFile):
-    registry = set()
     with open(registryfile, 'rt') as f:
-        [registry.add(x) for x in f.line()]
+        registry = set([x.strip() for x in f])
     return registry
 
 def protectRecord(name1, name2, birthdate):
@@ -173,7 +185,80 @@ def canonize(name1, name2):
 # Tests
 #
 
-# def test_processQueryFile():
+def _writeTestFile(tmpdir, fname, contents):
+    """
+    Creates a file for testing in the py.test temporary directory
+    """
+    tmpfile = tmpdir.join(fname)
+    tmpfile.write("\n".join(contents))
+    return str(tmpfile)
+
+def test_processQueryFile(tmpdir):
+    """
+    Tests processing a query file
+    """
+    # Write a test registry file
+    rfile = _writeTestFile(tmpdir, 'registry', _getTestRegistry())
+
+    # Write a query CSV
+    queryEntries = [
+        # header
+        ("name1", "name2", "birthdate"), 
+
+        # Exact match
+        ("Malika", "Rhoades", "1910-05-20"), 
+
+        # Complete match name-swap
+        ("Weeks","Leola",   "1920-05-20"), 
+
+        # No match
+        ("Not","HERE",  "1930-05-20"), 
+
+        # Partial match, day/month swap
+        ("Sant ina","Rayford'  ", "1940-10-05"), 
+
+        # No match
+        ("No match", "here", "1950-05-20"), 
+    ]
+    queryContents = [",".join(x) for x in queryEntries]
+    qfile = _writeTestFile(tmpdir, 'query.csv', queryContents)
+
+    # Query and check the results
+    print qfile
+    print rfile
+    assert(processQueryFile(qfile, rfile) == (0,0))
+
+def _writeTestQueryfile(tmpdir, fname, entries):
+    """
+    Generates a temporary query file for testing
+    """
+    # Add a header row and converts dates to strings and combine into a CSV
+    contents = ["name1,name2,birthdate"] + \
+        [",".join([n1,n2,str(d)]) for (n1,n2,d) in entries]
+    return _writeTestFile(tmpdir, fname, contents)
+
+def test_readQueryfile(tmpdir):
+    """
+    Tests reading an error-free query file
+    """
+    # Write a query CSV
+    entries = [
+        ("Malika", "Rhoades", date(1910, 05, 20)), 
+        ("Leola",  "Weeks",   date(1920, 05, 20)), 
+        ("Yevette","Dortch",  date(1930, 05, 20)), 
+        ("Santina","Rayford", date(1940, 05, 10)), 
+        ("Benita", "Harwell", date(1950, 05, 20)), 
+        ("Phylis", "Bravo",   date(1960, 05, 20)), 
+        ("Joslyn", "Martell", date(1970, 05, 20)), 
+        ("Callie", "Sweet",   date(1980, 05, 20)), 
+        ("Sondra", "Harlan",  date(1990, 05, 20)), 
+        ("Angla",  "Lockett", date(2000, 05, 20))  
+    ]
+    qfile = _writeTestQueryfile(tmpdir, 'query.csv', entries)
+
+    # Read the file and make sure it matches
+    readback = [x for x in readAndValidateQueryfile(qfile)]
+    assert(entries == readback)
 
 def _getTestRegistry():
     """
@@ -195,6 +280,17 @@ def _getTestRegistry():
     # Build an in-memory registry
     return set([protectRecord(n1,n2,b) for (n1,n2,b) in registryEntries])
 
+def test_loadRegistry(tmpdir):
+    # Dummy registry for testing
+    r = [
+        b64enc("1234567890"),
+        b64enc("0987654321"),
+        b64enc("asdfadfsadfs;dfs"),
+        b64enc(";13lk4nrpoaindpoiuandfovpins"),
+        b64enc("97810424327890301978134790")
+    ]
+    rfile = _writeTestFile(tmpdir, 'dummy-registry', r)
+    assert(set(r) == loadRegistry(rfile))
 
 def test_queryNoMatch():
     """
@@ -206,14 +302,13 @@ def test_queryNoMatch():
     nomatch = (False, False)
 
     # Nothing close
-    assert(query("Ben", "Stein", date(2000, 01, 01), r) == nomatch)
+    assert(query(r, "Ben", "Stein", date(2000, 01, 01)) == nomatch)
 
     # Wrong first name
-    assert(query("Fred", "Sweet",  date(1980, 05, 20), r) == nomatch)
+    assert(query(r, "Fred", "Sweet", date(1980, 05, 20)) == nomatch)
 
     # Wrong bdate
-    assert(query("Callie", "Sweet",  date(1980, 01, 20), r) == nomatch)
-
+    assert(query(r, "Callie", "Sweet", date(1980, 01, 20)) == nomatch)
 
 def test_queryPartialMatch():
     """
@@ -225,13 +320,13 @@ def test_queryPartialMatch():
     pmatch = (False, True)
 
     # year within 10
-    assert(query("Joslyn", "Martell", date(1980, 05, 20), r) == pmatch)
+    assert(query(r, "Joslyn", "Martell", date(1980, 05, 20)) == pmatch)
 
     # Day within 1
-    assert(query("Sondra", "Harlan",  date(1990, 05, 19), r) == pmatch)
+    assert(query(r, "Sondra", "Harlan",  date(1990, 05, 19)) == pmatch)
 
     # Name swap + day/month swap
-    assert(query("Rayford", "Santina", date(1940, 10, 05), r) == pmatch)
+    assert(query(r, "Rayford", "Santina", date(1940, 10, 05)) == pmatch)
 
 def test_queryCompleteMatches():
     """
@@ -243,16 +338,16 @@ def test_queryCompleteMatches():
     cmatch = (True, False)
 
     # Straight match
-    assert(query("Malika", "Rhoades", date(1910, 05, 20), r) == cmatch)
-    assert(query("Phylis", "Bravo",   date(1960, 05, 20), r) == cmatch)
+    assert(query(r, "Malika", "Rhoades", date(1910, 05, 20)) == cmatch)
+    assert(query(r, "Phylis", "Bravo",   date(1960, 05, 20)) == cmatch)
 
     # Name swap
-    assert(query("Rhoades", "Malika", date(1910, 05, 20), r) == cmatch)
-    assert(query("Bravo", "Phylis",  date(1960, 05, 20), r) == cmatch)
+    assert(query(r, "Rhoades", "Malika", date(1910, 05, 20)) == cmatch)
+    assert(query(r, "Bravo", "Phylis",  date(1960, 05, 20)) == cmatch)
 
     # Name swap and typo correct
-    assert(query("Rhoad'es", " MALIKA", date(1910, 05, 20), r) == cmatch)
-    assert(query("BRA vo", "Phy lis ;",  date(1960, 05, 20), r) == cmatch)
+    assert(query(r, "Rhoad'es", " MALIKA", date(1910, 05, 20)) == cmatch)
+    assert(query(r, "BRA vo", "Phy lis ;",  date(1960, 05, 20)) == cmatch)
 
 def test_dateRange():
     d = date(2000, 5, 20)
