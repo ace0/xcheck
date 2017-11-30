@@ -16,18 +16,6 @@ encMsgKeyBytes = 384
 publicKeyDecryptError = "This is an rsa PUBLIC key, but an rsa PRIVATE key is required for decryption."
 decryptionFailedError = "Decryption failed. Encrypted message is not valid."
 
-# TODO
-# - Refactor crypto code to crypto.py
-# - Add command-line tools:
-#   xcheck new-registry-key <basename>
-#   xcheck process <query.csv> <registry.csv>
-#   xcheck upload <query.csv>
-#   xcheck registry-update <additions.csv> <registry.csv>
-# - SFTP transfer
-# - Make a registry update
-# - Unpack, parse CSV, complete match
-# - Partial match
-
 def checkRegistry(name, date, registryfile="./registry"):
 	registry = loadRegistry(registryfile)
 
@@ -199,7 +187,6 @@ def createPubkeyPair(basename):
 def _writePemFile(filename, key):
 	with open(filename, 'wt') as outfile:
 		outfile.write(key.exportKey(format='PEM'))
-
 
 def _aesEncrypt(message):
 	"""

@@ -53,8 +53,8 @@ def query(name1, name2, birthdate, registry, output=True):
         return (True, False)
 
     # Next check for partial matches
-    for b in partialMatchDates(birthdate):
-        if match(name, b, registry):
+    for b in dateRange(birthdate):
+        if match(name1, name2, b, registry):
             if output:
                 print "Partial match for entry: {} {} with reported birthday {} but matched to birthdate {}".format(name1, name2, birthdate, b)
             return (False, True)
@@ -172,6 +172,87 @@ def canonize(name1, name2):
 ######
 # Tests
 #
+
+# def test_processQueryFile():
+
+def _getTestRegistry():
+    """
+    Builds an in-memory registry for testing.
+    """
+    registryEntries = [
+        ("Malika", "Rhoades", date(1910, 05, 20)), 
+        ("Leola",  "Weeks",   date(1920, 05, 20)), 
+        ("Yevette","Dortch",  date(1930, 05, 20)), 
+        ("Santina","Rayford", date(1940, 05, 10)), 
+        ("Benita", "Harwell", date(1950, 05, 20)), 
+        ("Phylis", "Bravo",   date(1960, 05, 20)), 
+        ("Joslyn", "Martell", date(1970, 05, 20)), 
+        ("Callie", "Sweet",  date(1980, 05, 20)), 
+        ("Sondra", "Harlan",  date(1990, 05, 20)), 
+        ("Angla",  "Lockett", date(2000, 05, 20))  
+    ]
+
+    # Build an in-memory registry
+    return set([protectRecord(n1,n2,b) for (n1,n2,b) in registryEntries])
+
+
+def test_queryNoMatch():
+    """
+    Test no-match queries
+    """
+    r = _getTestRegistry()
+
+    # No matches
+    nomatch = (False, False)
+
+    # Nothing close
+    assert(query("Ben", "Stein", date(2000, 01, 01), r) == nomatch)
+
+    # Wrong first name
+    assert(query("Fred", "Sweet",  date(1980, 05, 20), r) == nomatch)
+
+    # Wrong bdate
+    assert(query("Callie", "Sweet",  date(1980, 01, 20), r) == nomatch)
+
+
+def test_queryPartialMatch():
+    """
+    Test no-match queries
+    """
+    r = _getTestRegistry()
+
+    # Partial match 
+    pmatch = (False, True)
+
+    # year within 10
+    assert(query("Joslyn", "Martell", date(1980, 05, 20), r) == pmatch)
+
+    # Day within 1
+    assert(query("Sondra", "Harlan",  date(1990, 05, 19), r) == pmatch)
+
+    # Name swap + day/month swap
+    assert(query("Rayford", "Santina", date(1940, 10, 05), r) == pmatch)
+
+def test_queryCompleteMatches():
+    """
+    Test complete matching for query()s
+    """
+    r = _getTestRegistry()
+
+    # Complete match
+    cmatch = (True, False)
+
+    # Straight match
+    assert(query("Malika", "Rhoades", date(1910, 05, 20), r) == cmatch)
+    assert(query("Phylis", "Bravo",   date(1960, 05, 20), r) == cmatch)
+
+    # Name swap
+    assert(query("Rhoades", "Malika", date(1910, 05, 20), r) == cmatch)
+    assert(query("Bravo", "Phylis",  date(1960, 05, 20), r) == cmatch)
+
+    # Name swap and typo correct
+    assert(query("Rhoad'es", " MALIKA", date(1910, 05, 20), r) == cmatch)
+    assert(query("BRA vo", "Phy lis ;",  date(1960, 05, 20), r) == cmatch)
 
 def test_dateRange():
     d = date(2000, 5, 20)
