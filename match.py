@@ -202,31 +202,21 @@ def test_processQueryFile(tmpdir):
 
     # Write a query CSV
     queryEntries = [
-        # header
-        ("name1", "name2", "birthdate"), 
-
         # Exact match
-        ("Malika", "Rhoades", "1910-05-20"), 
-
+        ("Malika", "Rhoades", date(1910, 05, 20)), 
         # Complete match name-swap
-        ("Weeks","Leola",   "1920-05-20"), 
-
+        ("Weeks","Leola",   date(1920, 05, 20)), 
         # No match
-        ("Not","HERE",  "1930-05-20"), 
-
+        ("Not","HERE",  date(1930, 05, 20)), 
         # Partial match, day/month swap
-        ("Sant ina","Rayford'  ", "1940-10-05"), 
-
+        ("Sant ina","Rayford'  ", date(1940, 10, 05)), 
         # No match
-        ("No match", "here", "1950-05-20"), 
+        ("No match", "here", date(1950, 05, 20)) 
     ]
-    queryContents = [",".join(x) for x in queryEntries]
-    qfile = _writeTestFile(tmpdir, 'query.csv', queryContents)
+    qfile =_writeTestQueryfile(tmpdir, 'query.csv', queryEntries)
 
     # Query and check the results
-    print qfile
-    print rfile
-    assert(processQueryFile(qfile, rfile) == (0,0))
+    assert(processQueryFile(qfile, rfile) == (2,1))
 
 def _writeTestQueryfile(tmpdir, fname, entries):
     """
