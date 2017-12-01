@@ -8,9 +8,9 @@ from base64 import urlsafe_b64decode as b64dec
 from datetime import date
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+from crypto import protectRecord
 import csv
 import pytest
-
 
 defaultRegistryFile="./registry"
 
@@ -28,7 +28,7 @@ def processQueryFile(queryfile, registryfile=defaultRegistryFile):
     cMatchCount, pMatchCount = (0,0)
 
     # Process the query file
-    for (name1, name2, birthdate) in readAndValidateQueryfile(queryfile):
+    for (name1, name2, birthdate) in enumerateCsv(queryfile):
         cMatch, pMatch = query(registry, name1, name2, birthdate)
         cMatchCount += int(cMatch)
         pMatchCount += int(pMatch)
@@ -36,7 +36,17 @@ def processQueryFile(queryfile, registryfile=defaultRegistryFile):
     print "Found {} complete matches, {} partial matches"
     return cMatchCount, pMatchCount
 
-def readAndValidateQueryfile(queryfile):
+def processRegistryUpdateFile(updatefile, registryfile=defaultRegistryFile):
+    """
+    Processes an update file in CSV format and appends protected records
+    to the registry file.
+    """
+    # Read the update CSV and protect individual entries
+    entries = [protectRecord(n1, n2, bd) for (n1,n2,bd) in enumerateCsv(updatefile)]
+
+    _appendRegistryText(enumerateCsv(updatefile), registryfile)
+
+def enumerateCsv(queryfile):
     """
     Reads and validates a query.csv. Requires a well-formed header row
     and converts text dates to date objects.
@@ -140,7 +150,6 @@ def _appendRegistryText(textEntries, registryfile=defaultRegistryFile):
     textEntries = [('name1', 'name2', 'YYYY-mm-dd'), (...), ...]
     """
     # Process the text entries into a list of protected entries
-    print textEntries
     protEntries = [protectRecord(n1, n2, dt(bd)) for (n1,n2,bd) in textEntries]
     appendRegistry(protEntries)
 
@@ -154,31 +163,6 @@ def loadRegistry(registryfile=defaultRegistryFile):
     with open(registryfile, 'rt') as f:
         registry = set([x.strip() for x in f])
     return registry
-
-def protectRecord(name1, name2, birthdate):
-    """
-    Placeholder for record hardening. Replace with the other branch.
-    """
-    name = canonize(name1, name2)
-    assert(type(birthdate) is date)
-    secret = "9823nfdskjnsdfgkjanewkrh23qg"
-    sha = SHA512.new(data=name)
-    sha.update(birthdate.isoformat())
-    return b64enc(sha.digest() )
-
-def canonize(name1, name2):
-    """
-    Remove non-ASCII, non-alphanumeric characters and combine names
-    in alphabetical ordering to ensure matching in the face of certain classes
-    of typos.
-    """
-    # Strips non-alphabetical characters and converts to uppercase
-    def stripAndUp(txt):
-        return ("".join(ch for ch in txt if ch.isalpha())).upper()
-
-    # Strip and uppercase each name, sort to alphabetical order,
-    # join and return
-    return "".join(sorted([stripAndUp(n) for n in [name1,name2]]))
 
 
 ######
@@ -247,7 +231,7 @@ def test_readQueryfile(tmpdir):
     qfile = _writeTestQueryfile(tmpdir, 'query.csv', entries)
 
     # Read the file and make sure it matches
-    readback = [x for x in readAndValidateQueryfile(qfile)]
+    readback = [x for x in enumerateCsv(qfile)]
     assert(entries == readback)
 
 def _getTestRegistry():
@@ -408,49 +392,6 @@ def test_plusminus():
     Known-answer tests
     """
     assert([x for x in plusminus(5,5)] == [0,1,2,3,4,6,7,8,9,10])
-
-def test_canonize():
-    """
-    Simple known-answer tests
-    """
-    assert(canonize("Avery","Bales") == "AVERYBALES")
-    assert(canonize("Idell", "Leggett") == "IDELLLEGGETT")
-    assert(canonize("Farah", "Sharkey") == "FARAHSHARKEY")
-    assert(canonize("Alla", "Creamer") == "ALLACREAMER")
-    assert(canonize("Lavinia", "Barnhart") == "BARNHARTLAVINIA")
-    assert(canonize("Florance", "Arevalo") == "AREVALOFLORANCE")
-    assert(canonize("Trinidad", "Langley") == "LANGLEYTRINIDAD")
-    assert(canonize("Romona", "Daly") == "DALYROMONA")
-    assert(canonize("Elfreda", "Michaud") == "ELFREDAMICHAUD")
-    assert(canonize("Tamela", "Garris") == "GARRISTAMELA")
-
-def test_canonizeNonAlpha():
-    """
-    Tests that canonize handles non-alphanumeric characters
-    """
-    assert(canonize("Ave3ry","Bales1") == "AVERYBALES")
-    assert(canonize("Idell", "Legg`ett") == "IDELLLEGGETT")
-    assert(canonize("2Farah", "Sharkey") == "FARAHSHARKEY")
-    assert(canonize("Alla", "Creamer4") == "ALLACREAMER")
-    assert(canonize("Lavinia\xe2", "Barnhart") == "BARNHARTLAVINIA")
-
-def test_canonizeSpaces():
-    """
-    Tests that canonize removes whitespace: spaces, tabs, newlines
-    """
-    assert(canonize("Florance", "  Arevalo") == "AREVALOFLORANCE")
-    assert(canonize("Trinidad   ", "Langley\n") == "LANGLEYTRINIDAD")
-    assert(canonize("Ro mona", "Da ly") == "DALYROMONA")
-    assert(canonize("  El freda ", "    Micha ud     ") == "ELFREDAMICHAUD")
-    assert(canonize("  Tamela", "Garris") == "GARRISTAMELA")
-
-def test_canonizeReverse():
-    """
-    Tests that canonize always matches reversed names
-    """
-    assert(canonize("Edra", "Gaither") == canonize("Gaither", "Edra"))
-    assert(canonize("Toccara", "Wynn") == canonize("Wynn", "Toccara"))
-    assert(canonize("Debby", "Heredia") == canonize("Heredia", "Debby"))
 
 def test_dt():
     """

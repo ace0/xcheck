@@ -4,9 +4,13 @@ Process protected infectious disease reports and patient queries.
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
-from Crypto.Hash import SHA256
-from base64 import urlsafe_b64encode as b64encode
-from base64 import urlsafe_b64decode as b64decode
+from Crypto.Hash import SHA256, SHA512
+from datetime import date
+# from datetime import datetime
+# from base64 import urlsafe_b64enc as b64enc
+# from base64 import urlsafe_b64dec as b64dec
+from base64 import urlsafe_b64encode as b64enc
+from base64 import urlsafe_b64decode as b64dec
 import json, pytest
 
 symmetricKeySizeBytes = 128/8
@@ -25,18 +29,30 @@ def loadRegistry(registryfile="./registry"):
 		[registry.add(entry) for entry in f]
 	return registry
 
-def hardenRecord(name, date, secret, iterations=1000):
-	"""
-	Registry records are hardened with an iterated hash combined with a secret.
-	hr = b64( SHA256^{1000}(secret, name, date) )
-	"""
-	sha = SHA256.new(data=secret)
-	sha.update(name)
-	sha.update(stdDate(date))
-	d = sha.digest()
-	for _ in xrange(iterations):
-		d = SHA256.new(data=d).digest()
-	return b64encode(d)
+def protectRecord(name1, name2, birthdate):
+    """
+    Placeholder for record hardening. Replace with the other branch.
+    """
+    name = canonize(name1, name2)
+    assert(type(birthdate) is date)
+    secret = "9823nfdskjnsdfgkjanewkrh23qg"
+    sha = SHA512.new(data=name)
+    sha.update(birthdate.isoformat())
+    return b64enc(sha.digest() )
+
+def canonize(name1, name2):
+    """
+    Remove non-ASCII, non-alphanumeric characters and combine names
+    in alphabetical ordering to ensure matching in the face of certain classes
+    of typos.
+    """
+    # Strips non-alphabetical characters and converts to uppercase
+    def stripAndUp(txt):
+        return ("".join(ch for ch in txt if ch.isalpha())).upper()
+
+    # Strip and uppercase each name, sort to alphabetical order,
+    # join and return
+    return "".join(sorted([stripAndUp(n) for n in [name1,name2]]))
 
 def stdDate(date):
 	"""
@@ -121,8 +137,8 @@ def createJee(pubkey, encMsg):
 		"typ": "jee", 
 		"alg": "RSA-PKCS1-OAEP-AES128-GCM",
 		"pk_fp_alg": "PEM-SHA256",
-		"pk_fp": b64encode(pkFingerprint(pubkey)),
-		"enc_msg": b64encode(encMsg)
+		"pk_fp": b64enc(pkFingerprint(pubkey)),
+		"enc_msg": b64enc(encMsg)
 	}
 	return json.dumps(env)
 
@@ -138,7 +154,7 @@ def decodeAndVerifyJee(pubkey, jsstxt):
 	except ValueError as err:
 		return (None, str(err))
 
-	expectedFpB64 = b64encode(pkFingerprint(pubkey))
+	expectedFpB64 = b64enc(pkFingerprint(pubkey))
 
 	# Probes the env dictionary for an expected k,v pair
 	def check(k, v):
@@ -160,7 +176,7 @@ def decodeAndVerifyJee(pubkey, jsstxt):
 	if not "enc_msg" in env or len(env["enc_msg"]) == 0:
 		return (None, "Encrypted message is missing or empty (enc_msg)")
 
-	return b64decode(str(env["enc_msg"])), None
+	return b64dec(str(env["enc_msg"])), None
 
 def pkFingerprint(pubkey):
 	"""
@@ -243,8 +259,45 @@ def test_aesDetectsCtextError():
 	with pytest.raises(ValueError, message="MAC check failed"):
 		recoveredMessage = _aesDescrypt(key, ctext)
 
+def test_canonize():
+    """
+    Simple known-answer tests
+    """
+    assert(canonize("Avery","Bales") == "AVERYBALES")
+    assert(canonize("Idell", "Leggett") == "IDELLLEGGETT")
+    assert(canonize("Farah", "Sharkey") == "FARAHSHARKEY")
+    assert(canonize("Alla", "Creamer") == "ALLACREAMER")
+    assert(canonize("Lavinia", "Barnhart") == "BARNHARTLAVINIA")
+    assert(canonize("Florance", "Arevalo") == "AREVALOFLORANCE")
+    assert(canonize("Trinidad", "Langley") == "LANGLEYTRINIDAD")
+    assert(canonize("Romona", "Daly") == "DALYROMONA")
+    assert(canonize("Elfreda", "Michaud") == "ELFREDAMICHAUD")
+    assert(canonize("Tamela", "Garris") == "GARRISTAMELA")
 
+def test_canonizeNonAlpha():
+    """
+    Tests that canonize handles non-alphanumeric characters
+    """
+    assert(canonize("Ave3ry","Bales1") == "AVERYBALES")
+    assert(canonize("Idell", "Legg`ett") == "IDELLLEGGETT")
+    assert(canonize("2Farah", "Sharkey") == "FARAHSHARKEY")
+    assert(canonize("Alla", "Creamer4") == "ALLACREAMER")
+    assert(canonize("Lavinia\xe2", "Barnhart") == "BARNHARTLAVINIA")
 
+def test_canonizeSpaces():
+    """
+    Tests that canonize removes whitespace: spaces, tabs, newlines
+    """
+    assert(canonize("Florance", "  Arevalo") == "AREVALOFLORANCE")
+    assert(canonize("Trinidad   ", "Langley\n") == "LANGLEYTRINIDAD")
+    assert(canonize("Ro mona", "Da ly") == "DALYROMONA")
+    assert(canonize("  El freda ", "    Micha ud     ") == "ELFREDAMICHAUD")
+    assert(canonize("  Tamela", "Garris") == "GARRISTAMELA")
 
-
-
+def test_canonizeReverse():
+    """
+    Tests that canonize always matches reversed names
+    """
+    assert(canonize("Edra", "Gaither") == canonize("Gaither", "Edra"))
+    assert(canonize("Toccara", "Wynn") == canonize("Wynn", "Toccara"))
+    assert(canonize("Debby", "Heredia") == canonize("Heredia", "Debby")) 

@@ -1,6 +1,4 @@
 TODO
-
-- cli: gen-registry-keys
 - cli: registry-update
 - cli: process
 - Add settings.json with default settings
