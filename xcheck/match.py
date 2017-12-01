@@ -9,8 +9,7 @@ from datetime import date
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 from crypto import protectRecord
-import csv
-import pytest
+import csv, pytest
 
 defaultRegistryFile="./registry"
 
@@ -42,9 +41,8 @@ def processRegistryUpdateFile(updatefile, registryfile=defaultRegistryFile):
     to the registry file.
     """
     # Read the update CSV and protect individual entries
-    entries = [protectRecord(n1, n2, bd) for (n1,n2,bd) in enumerateCsv(updatefile)]
-
-    _appendRegistryText(enumerateCsv(updatefile), registryfile)
+    entries = [protectRecord(n1,n2,bd) for (n1,n2,bd) in enumerateCsv(updatefile)]
+    appendRegistry(entries, registryfile)
 
 def enumerateCsv(queryfile):
     """
