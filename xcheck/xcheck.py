@@ -6,8 +6,8 @@ from crypto import createPubkeyPair
 from match import processRegistryUpdateFile
 
 class Cli(): 
-  usage = """
-  Usage: xcheck [COMMAND] [OPTIONS]
+  usage = \
+  """Usage: xcheck [COMMAND] [OPTIONS]
 
   Commands for providers:
   xcheck upload QUERY_CSV
@@ -16,7 +16,7 @@ class Cli():
   xcheck process [--registry REGISTRY] [--queryfiles QUERY1 QUERY2 ...]
   xcheck update UPDATE_CSV [--registry REGISTRY]
 
-  xcheck new-registry
+  xcheck new_registry
   xcheck gen_registry_keys [KEYPATH]
   """
 
@@ -24,19 +24,19 @@ class Cli():
     """
     Updates (or creates) a registry by adding entries from UPDATE_CSV.
     """
-    # TODO: Load registryfile default from settings.json
+    # TODO: Load registry default from settings.json
     registry = registry or "samples/registry"
     processRegistryUpdateFile(update_csv, registry)
     print "Registry updated"
 
-  def upload(self, query_csv):
-    """
-    Encrypts and uploads QUERYFILE (*.csv) to a registry service
-    """
-    print "Queryfile {}".format(query)
+  # def upload(self, query_csv):
+  #   """
+  #   Encrypts and uploads QUERY_CSV to the registry service
+  #   """
+  #   print "Queryfile {}".format(query)
 
-  def process(self, query):
-    print "Queryfile {}".format(query)
+  # def process(self, queryfiles, registry=None,):
+  #   print "Queryfile {}".format(query)
 
   def gen_registry_keys(self, keypath=None):
     """
@@ -53,4 +53,5 @@ class Cli():
     print Cli.usage
 
 if __name__ == '__main__':
+  # TODO: Check sys.argv, print our own usage if we see: no args, --help, help, -h
   fire.Fire(Cli())
