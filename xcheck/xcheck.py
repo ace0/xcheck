@@ -1,9 +1,10 @@
 """
 Command-line interface for xcheck
 """
-import fire
 from crypto import createPubkeyPair
 from match import processRegistryUpdateFile
+import fire
+import sys
 
 class Cli(): 
   usage = \
@@ -50,8 +51,19 @@ class Cli():
     createPubkeyPair(basename)
 
   def help(self):
+    """
+    Print a usage string.
+    """
     print Cli.usage
 
 if __name__ == '__main__':
-  # TODO: Check sys.argv, print our own usage if we see: no args, --help, help, -h
+  # Short-circuit Fire's error messages because they're unecessarily 
+  # ugly and verbose
+  # Check for "-h|--help" or no arguments and print the help message.
+  if ("-h" in sys.argv or "--help" in sys.argv or "-help" in sys.argv or
+    len(sys.argv) == 1):
+    Cli().help()
+    sys.exit(1)
+
+  # Hand-off to fire for argument processing
   fire.Fire(Cli())
