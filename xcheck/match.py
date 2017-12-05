@@ -8,31 +8,30 @@ from base64 import urlsafe_b64decode as b64dec
 from datetime import date
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from crypto import protectRecord
+from crypto import protectRecord, publicKeyDecrypt
 import csv, pytest
 
-defaultRegistryFile="./registry"
+defaultRegistryFile = "./registry"
+defaultPubkey = "./registry-public.pem"
 
-def processQueryFile(queryfile, registryfile=defaultRegistryFile):
+
+def processQueryFile(queryJeefile, pubkey, registry):
     """
-    Processes a queryfile in CSV format. Sample file:
-    name1, name2, birthdate
-    everspaugh, adam, 1979-10-01
-    james, schamber, 1980-12-25
+    Processes an encrypted query.jee once pubkey and registry have been loaded
+    into memory.
     """
-    # Load the registry file
-    registry = loadRegistry(registryfile)
 
     # Track the number of complete and partial matches
     cMatchCount, pMatchCount = (0,0)
 
     # Process the query file
-    for (name1, name2, birthdate) in enumerateCsv(queryfile):
+    for (name1, name2, birthdate) in enumerateCsv(queryJeefile):
         cMatch, pMatch = query(registry, name1, name2, birthdate)
         cMatchCount += int(cMatch)
         pMatchCount += int(pMatch)
 
-    print "Found {} complete matches, {} partial matches"
+    if cMatchCount + pMatchCount == 0:
+        print "Found no complete or partial matches"
     return cMatchCount, pMatchCount
 
 def processRegistryUpdateFile(updatefile, registryfile=defaultRegistryFile):
@@ -43,6 +42,7 @@ def processRegistryUpdateFile(updatefile, registryfile=defaultRegistryFile):
     # Read the update CSV and protect individual entries
     entries = [protectRecord(n1,n2,bd) for (n1,n2,bd) in enumerateCsv(updatefile)]
     appendRegistry(entries, registryfile)
+    return len(entries)
 
 def enumerateCsv(queryfile):
     """
@@ -161,7 +161,6 @@ def loadRegistry(registryfile=defaultRegistryFile):
     with open(registryfile, 'rt') as f:
         registry = set([x.strip() for x in f])
     return registry
-
 
 ######
 # Tests
