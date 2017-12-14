@@ -177,7 +177,7 @@ def decodeAndVerifyJee(pubkey, jsstxt):
 
 def pkFingerprint(pubkey):
 	"""
-	Generates pubkey fingerprint using our fingerping technique:
+	Generates pubkey fingerprint using our fingerprinting technique:
 	SHA256(pem-encoded-pubkey)
 	"""
 	return SHA256.new(data=pubkey.exportKey(format='PEM')).digest()

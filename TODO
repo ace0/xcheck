@@ -1,6 +1,23 @@
 TODO
-- cli: process
 
+- Implement provider-side permutation; out to file for inspection
+- Permutation tests
+- Implement provider-side hashing; out to file for inspection
+- Hashing tests
+- Provider-side encryption and JEE packaging
+- Encryption tests
+- Implement "xreport protect" command
+- Add settings.json
+
+- 
+
+
+
+Review later:
+
+- Split upload/registry commands
+- Remove PRFsecret -- switch 
+- cli: process -- Add decryption
 - Add settings.json with default settings
 - SFTP transfer functions
 - cli: upload
@@ -10,9 +27,16 @@ TODO
 
 - Add sensitive files to .gitignore (.prfsecret, *-private.pem)
 
+- Automatically detect number of CPUs and fan out the computation
+
 - Reorganize? 
 -- crypto.py -- encryption and low-level tools
 -- registry.py  -- registry-related operations: loadRegistry, updateRegistry
 -- xcheck.py -- CLI and API?
 -- match.py -- perform matching 
 -- Or: put all into one file. xheck.py with CLI and all operations?
+
+- Some entries mix file and file contents. Need to standardize
+- PubkeyEnc/Dec need to take contents-not-files and maybe add a wrapper that
+  operates on files-not-contents
+

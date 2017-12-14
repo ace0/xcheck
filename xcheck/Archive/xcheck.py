@@ -11,20 +11,21 @@ class Cli():
   """Usage: xcheck [COMMAND] [OPTIONS]
 
   Commands for providers:
-  xcheck upload QUERY_CSV
+  xcheck upload QUERY_CSV [--encryptOnly OUTPUT_FILE]
 
   Commands for registries:
-  xcheck process QUERY1_JEE,QUERY2_JEE,... [--registry REGISTRY] [--pubkey key-public.pem]
+  xcheck process QUERY1_JEE,QUERY2_JEE,... [--registry REGISTRY] [--privkey key-private.pem]
   xcheck update UPDATE_CSV [--registry REGISTRY]
 
   xcheck new_registry
   xcheck gen_registry_keys [KEYPATH]
   """
-  # def upload(self, query_csv):
-  #   """
-  #   Encrypts and uploads QUERY_CSV to the registry service
-  #   """
-  #   print "Queryfile {}".format(query)
+
+  def upload(self, query_csv, encryptOnly=None):
+    """
+    Encrypts and uploads QUERY_CSV to the registry service. If encryptOnly
+    value 
+    """
 
   # def process(self, queryfiles, registry=None,):
   #   print "Queryfile {}".format(query)
@@ -46,24 +47,20 @@ class Cli():
     """
     print Cli.usage
 
-  def process(self, queryfiles, registry=None, pubkey=None):
+  def process(self, queryfiles, registry=None, privkey=None):
     """
     Processes a list of encrypted query files against a protected registry.
     """
     # TODO: Load default paths from settings.json
     registry = registry or "samples/registry"
-    pubkey = registry or "samples/registry-public.pem"
+    privkey = privkey or "samples/registry-private.pem"
 
-    # Load the registry and pubkey
+    # Load the registry
     registryEntries = loadRegistry(registry)
-    with open(pubkey, 'rt') as r:
-      pubkeyContents = r.read()
 
     for q in queryfiles.split(","):
-      print "Processing encrypted query file {}".format(q)
-      processQueryFile(queryJeefile=q, pubkey=pubkeyContents, 
+      processQueryFile(queryJeefile=q, privkeyfile=privkey, 
         registry=registryEntries)
-      print 
 
   def update(self, update_csv, registry=None):
     """

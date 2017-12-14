@@ -8,24 +8,31 @@ from base64 import urlsafe_b64decode as b64dec
 from datetime import date
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from crypto import protectRecord, publicKeyDecrypt
+from crypto import protectRecord, publicKeyDecrypt, decodeAndVerifyJee
 import csv, pytest
 
 defaultRegistryFile = "./registry"
 defaultPubkey = "./registry-public.pem"
 
 
-def processQueryFile(queryJeefile, pubkey, registry):
+def processQueryFile(queryJeefile, privkeyfile, registry):
     """
     Processes an encrypted query.jee once pubkey and registry have been loaded
     into memory.
     """
+    # Decrypt the .jee file in memory
+    with open(queryJeefile, 'rt') as f:
+        contents, err = publicKeyDecrypt(privkeyFile=privkeyfile, 
+            jee=f.read())
+    if err:
+        print err
+        return 
 
     # Track the number of complete and partial matches
     cMatchCount, pMatchCount = (0,0)
 
     # Process the query file
-    for (name1, name2, birthdate) in enumerateCsv(queryJeefile):
+    for (name1, name2, birthdate) in enumerateCsv(contents):
         cMatch, pMatch = query(registry, name1, name2, birthdate)
         cMatchCount += int(cMatch)
         pMatchCount += int(pMatch)
@@ -44,23 +51,22 @@ def processRegistryUpdateFile(updatefile, registryfile=defaultRegistryFile):
     appendRegistry(entries, registryfile)
     return len(entries)
 
-def enumerateCsv(queryfile):
+def enumerateCsv(querytext):
     """
     Reads and validates a query.csv. Requires a well-formed header row
     and converts text dates to date objects.
     yields: (name1, name2, date(birthdate))
     """
-    with open(queryfile, 'rb') as f:
-        reader = csv.reader(f)
+    reader = csv.reader(querytext)
 
-        # Verify the header row is as expected as a sanity check
-        hdr = reader.next()
-        if hdr != ["name1", "name2", "birthdate"]:
-            raise ValueError("The file '{}' is incorrectly formatted. Header row does not match expected header row.".format(queryfile))
+    # Verify the header row is as expected as a sanity check
+    hdr = reader.next()
+    if hdr != ["name1", "name2", "birthdate"]:
+        raise ValueError("The file '{}' is incorrectly formatted. Header row does not match expected header row.".format(queryfile))
 
-        # Then, process each line as a query
-        for [name1, name2, birthdate] in reader:
-            yield name1, name2, dt(birthdate)
+    # Then, process each line as a query
+    for [name1, name2, birthdate] in reader:
+        yield name1, name2, dt(birthdate)
 
 def query(registry, name1, name2, birthdate, output=True):
     """
