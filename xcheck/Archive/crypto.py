@@ -28,11 +28,10 @@ def loadRegistry(registryfile="./registry"):
 
 def protectRecord(name1, name2, birthdate):
     """
-    Placeholder for record hardening. Replace with the other branch.
+    Protects a single record of demographic info by applying SHA512.
     """
     name = canonize(name1, name2)
     assert(type(birthdate) is date)
-    secret = "9823nfdskjnsdfgkjanewkrh23qg"
     sha = SHA512.new(data=name)
     sha.update(birthdate.isoformat())
     return b64enc(sha.digest() )

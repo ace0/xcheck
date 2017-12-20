@@ -3,7 +3,7 @@ Command-line interface healthcare providers to report patient check-ins
 """
 # from crypto import createPubkeyPair
 # from match import processRegistryUpdateFile, loadRegistry, processQueryFile
-from lib import permuteCsv
+from lib import processCheckins
 import fire
 import sys
 
@@ -39,7 +39,7 @@ class XReportCli():
     (jee file).
     """
     out = out or "./permute.csv"
-    for row in permuteCsv(checkin_csv):
+    for row in processCheckins(checkin_csv):
       print row
 
   def help(self):
