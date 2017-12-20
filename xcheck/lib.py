@@ -1,14 +1,32 @@
 """
 Routines for operating on CSV files containing demographic information.
 """
-from Crypto.Hash import SHA512
-
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
+from Crypto.Hash import SHA256, SHA512
 from base64 import urlsafe_b64encode as b64enc, urlsafe_b64decode as b64dec
-# from base64 import
 from datetime import datetime, date
-import csv
+import csv, json
 
-def processCheckins(inputfile):
+###
+#
+# Operate on files containing demographic info in CSV format
+
+def processCheckins(inputfile, outfile, recipientKeyfile):
+    """
+    Process (and validate) and fiel of demographic info and create an
+    ecnrypted output file that contains protected records and is encrypted
+    under the key retrieved from the file.
+    """
+    # Generate an entire proected record CSV in-memory
+    txt = '\n'.join([x for x in permuteAndProtectCheckins(inputfile)])
+
+    # Encrypt the contents and write it to a file
+    with open(outfile, 'w+t') as f:
+        f.write(publicKeyEncrypt(recipientKeyfile, txt))
+
+def permuteAndProtectCheckins(inputfile):
     """
     Reads and validates a CSV of demographic info and produces protected
     records for various permuations on the birthdate.
@@ -120,6 +138,169 @@ def canonize(name1, name2):
     # Strip and uppercase each name, sort to alphabetical order,
     # join and return
     return "".join(sorted([stripAndUp(n) for n in [name1,name2]]))
+
+###
+# 
+# Working with encrypted files
+
+# Constant
+symmetricKeySizeBytes = 128/8
+
+def publicKeyEncrypt(recipientKeyfile, message):
+    """
+    Applies public key (hybrid) encryption to a given message when supplied 
+    with a path to a public key (RSA in PEM format).
+    """
+    # Load the recipients pubkey from a PEM file
+    with open(recipientKeyfile, 'rb') as f:
+        recipientKey = RSA.import_key(f.read())
+
+    # Encrypt the message with AES-GCM using a newly selected key
+    messageKey, ctext = _aesEncrypt(message)
+
+    # Encrypt the message key and prepend it to the ciphertext
+    cipher = PKCS1_OAEP.new(recipientKey)
+    encMsg = cipher.encrypt(messageKey) + ctext
+
+    # Format the message into JSON
+    return createJee(recipientKey, encMsg)
+
+def publicKeyDecrypt(privkeyFile, jee):
+    """
+    Decrypts an encrypted message with a private (RSA) key.
+    Returns: (message, err)
+    """
+    privkey = None
+    with open(privkeyFile, 'rb') as f:
+        privkey = RSA.import_key(f.read())
+
+    # Verify that this is a private key
+    if not privkey.has_private():
+        return (None, publicKeyDecryptError)
+
+    # Verify the JEE and extract the encrypted message
+    encMsg, err = decodeAndVerifyJee(privkey.publickey(), jee)
+    if err:
+        return (None, err)
+
+    # Separate the encrypted message key from the symmetric-encrypted portion.
+    encKey, ctext = encMsg[:encMsgKeyBytes], encMsg[encMsgKeyBytes:]
+
+    # Recover the message key
+    msgKey = PKCS1_OAEP.new(privkey).decrypt(encKey)
+
+    # Recover the underlying message
+    try:
+        return (_aesDescrypt(msgKey, ctext), None)
+    except ValueError:
+        return (None, decryptionFailedError)
+
+def createJee(pubkey, encMsg):
+    """
+    Packages a ciphertext into a JSON encryption envelope. Example:
+    { 
+        "typ": "jee",
+        "alg": "RSA-PKCS1-OAEP-AES128-GCM",
+        "pk_fp_alg": "SHA256",
+        "pk_fp": "base64=",
+        "enc_data": "base64="
+    }
+    """
+    env = {
+        "typ": "jee", 
+        "alg": "RSA-PKCS1-OAEP-AES128-GCM",
+        "pk_fp_alg": "PEM-SHA256",
+        "pk_fp": b64enc(pkFingerprint(pubkey)),
+        "enc_msg": b64enc(encMsg)
+    }
+    return json.dumps(env)
+
+def decodeAndVerifyJee(pubkey, jsstxt):
+    """
+    Parses and verifies a JSON encryption envelope against our default settings.
+    Verifies the pubkey fingerprint against the pubkey provided.    
+    Returns: (enc_data, error)
+    """
+    env = {}
+    try:
+        env = json.loads(jsstxt)
+    except ValueError as err:
+        return (None, str(err))
+
+    expectedFpB64 = b64enc(pkFingerprint(pubkey))
+
+    # Probes the env dictionary for an expected k,v pair
+    def check(k, v):
+        return k in env and env[k] == v
+
+    # Check for expected fields and values
+    if not check("typ", "jee"):
+        return (None, "Unknown packaging type -- expected typ=jee")
+
+    if not check("alg", "RSA-PKCS1-OAEP-AES128-GCM"):
+        return (None, "Unknown encryption algorithm -- expected alg='RSA-PKCS1-OAEP-AES128-GCM'")
+
+    if not check("pk_fp_alg", "PEM-SHA256"):
+        return (None, "Unknown public key fingerprint algorithm -- expected pk_fp_alg='PEM-SHA256'")
+
+    if not check("pk_fp", expectedFpB64):
+        return (None, "Public key fingerprint mismatch.")
+
+    if not "enc_msg" in env or len(env["enc_msg"]) == 0:
+        return (None, "Encrypted message is missing or empty (enc_msg)")
+
+    return b64dec(str(env["enc_msg"])), None
+
+def pkFingerprint(pubkey):
+    """
+    Generates pubkey fingerprint using our fingerprinting technique:
+    SHA256(pem-encoded-pubkey)
+    """
+    return SHA256.new(data=pubkey.exportKey(format='PEM')).digest()
+
+def createPubkeyPair(basename):
+    """
+    Creates a new secret/key pubkey pair and writes them to distinct files:
+    <basename>-public.pem
+    <basename>-private.pem
+    """
+    pubFilename = basename + "-public.pem"
+    privFilename = basename + "-private.pem"
+
+    # Create a new key and write both key versions to the correct file
+    privkey = RSA.generate(rsaKeySize)
+    pubkey = privkey.publickey()
+    _writePemFile(pubFilename, pubkey)
+    _writePemFile(privFilename, privkey)
+
+def _writePemFile(filename, key):
+    with open(filename, 'wt') as outfile:
+        outfile.write(key.exportKey(format='PEM'))
+
+def _aesEncrypt(message):
+    """
+    Encrypts a message with a fresh key using AES-GCM. 
+    Returns: (key, ciphertext)
+    """
+    key = get_random_bytes(symmetricKeySizeBytes)
+    cipher = AES.new(key, AES.MODE_GCM)
+    ctext, tag = cipher.encrypt_and_digest(message)
+
+    # Concatenate (nonce, tag, ctext) and return with key
+    return key, (cipher.nonce + tag + ctext)
+
+def _aesDescrypt(key, ctext):
+    """
+    Decrypts and authenticates a ciphertext encrypted with with given key.
+    """
+    # Break the ctext into components, then decrypt
+    nonce,tag,ct = (ctext[:16], ctext[16:32], ctext[32:])
+    cipher = AES.new(key, AES.MODE_GCM, nonce)
+    return cipher.decrypt_and_verify(ct, tag)
+
+###
+#
+# Utilities
 
 def dt(txt, fmt='%Y-%m-%d'):
     """

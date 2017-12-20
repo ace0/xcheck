@@ -1,8 +1,6 @@
 TODO
 
-- Implement provider-side permutation; out to file for inspection
 - Permutation tests
-- Implement provider-side hashing; out to file for inspection
 - Hashing tests
 - Provider-side encryption and JEE packaging
 - Encryption tests

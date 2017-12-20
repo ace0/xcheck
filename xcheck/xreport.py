@@ -21,8 +21,8 @@ class XReportCli():
 
   Others:
   xreport protect CHECKIN_CSV 
-      [--pubkey REG_PUBLIC_PEM] 
       [--out CHECKIN_JEE]
+      [--pubkey REG_PUBLIC_PEM] 
     Hashes and encrypts a CSV, but does not upload
 
   xreport upload CHECKIN_JEE
@@ -31,16 +31,17 @@ class XReportCli():
     Uploads a JSON encrypted envelope (jee) to an SFTP service
   """
 
-  def protect(self, checkin_csv, pubkey=None, out=None):
+  def protect(self, checkin_csv, out=None, pubkey=None):
     """
     Read and verify a CSV; transform entries according to partial-matching
     rules; hash each entry with random salt; encrypt the dataset with 
     a public key and package the results as a JSON encrypted envelope 
     (jee file).
     """
-    out = out or "./permute.csv"
-    for row in processCheckins(checkin_csv):
-      print row
+    out = out or "./protected.jee"
+    pubkey = pubkey or "samples/registry-public.pem"
+    processCheckins(inputfile=checkin_csv, recipientKeyfile=pubkey, 
+      outfile=out)
 
   def help(self):
     """
