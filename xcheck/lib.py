@@ -1,6 +1,7 @@
 """
 Routines for operating on CSV files containing demographic information.
 """
+from datetime import datetime, date
 import csv
 
 def permuteCsv(inputfile):
@@ -15,7 +16,7 @@ def permuteCsv(inputfile):
         yield (n1,n2,bdate)
 
         # Yield each alternative birthdate
-        for altBdate in dateRange(row):
+        for altBdate in dateRange(bdate):
             yield (n1,n2,altBdate)
 
 def enumerateCsv(inputfile):
@@ -33,9 +34,6 @@ def enumerateCsv(inputfile):
             raise err(ValueError, """The file '{}' is incorrectly formatted. 
                 Header row does not match expected header row.""",
                 inputfile)
-            # raise ValueError(("The file '{}' is incorrectly formatted. "
-            #     + "Header row does not match expected header row."
-            #     ).format(inputfile))
 
         # Then, process each line as a query
         for [name1, name2, birthdate] in reader:
