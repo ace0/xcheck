@@ -32,10 +32,12 @@ def loadSettings(settingsfile=defaultSettingsFile):
     settingsFromFile = {}
     try:
         settingsFromFile = readSettingsFile(settingsfile)
+    # Catch file IO errors
     except IOError as e:
-        # Ignore IO and json parsing error
-        print "Warning: there was problem loading settings file '{}': {}\nUsing default settings instead.".format(
-            settingsfile, e)
+        printSettingsError(settingsfile, e)
+    # And JSON parsing errors
+    except ValueError as e:
+        printSettingsError(settingsfile, e)
 
     # Start with the default settings and overwrite any settings
     # read from the file.
@@ -58,6 +60,10 @@ def writeDefaultSettings(settingsfile=defaultSettingsFile):
     """
     with open(settingsfile, 'w') as f:
         f.write(json.dumps(defaultSettings))
+
+def printSettingsError(settingsfile, e):
+    print "Warning: there was problem loading settings file '{}': {}\nUsing default settings instead.".format(
+        settingsfile, e)
 
 ###
 #

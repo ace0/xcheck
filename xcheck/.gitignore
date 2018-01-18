@@ -2,4 +2,5 @@
 protected.jee
 ./testkey-private.pem
 ./testkey-public.pem
-dummy
+./registry-public.pem
+./registry-private.pem

@@ -22,6 +22,7 @@ class XCheckCli():
 
   def newkeys(self):
     settings = loadSettings()
+    print "\nCreating key pair -- this may take several seconds"
     createPubkeyPair(basename="registry")
 
     printLines("Created new key pair: registry-public.pem, registry-private.pem",
