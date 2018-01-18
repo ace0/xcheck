@@ -182,6 +182,33 @@ def canonize(name1, name2):
     # join and return
     return "".join(sorted([stripAndUp(n) for n in [name1,name2]]))
 
+def scrubPrefixes(name):
+    """
+    Removes commonly seen prefixes.
+    """
+    prefixes = ["Mr.", "Ms.", "Mrs.", "Dr.", "Mr", "Ms", "Mrs", "Dr", "Miss"]
+    names = name.split()
+    if names[0] in prefixes:
+        names = names[1:]
+    else:
+         names = names[0:]
+    return ' '.join(names)
+
+
+
+# Script to clean the suffixes:
+
+# names = ["Rodriguez", "Walters III", "Hinami Jr.", "Fausto  Patel MA", "Sanchez-Johnson"]
+# suffixes = ["I", "II", "III", "IV", "Jr.", "Sr.", "Jr", "Sr", "MA", "MD", "1st", "2nd", "3rd"]
+# last_names = []
+# for i in names:
+#     new_name = i.split()
+#     if new_name[-1] in suffixes:
+#         last_names.append(new_name[:-1])
+#     else:
+#         last_names.append(new_name[0:])
+# print(last_names)
+
 ###
 # 
 # Working with encrypted files

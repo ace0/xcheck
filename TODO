@@ -1,13 +1,11 @@
 TODO
 
 - Integrate name cleanup code from Kruti
+
+
 - Permutation tests
 - Hashing tests
-- Provider-side encryption and JEE packaging
 - Encryption tests
-- Implement "xreport protect" command
-
-- 
 
 
 
