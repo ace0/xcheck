@@ -3,10 +3,9 @@ Command-line interface healthcare providers to report patient check-ins
 """
 # from crypto import createPubkeyPair
 # from match import processRegistryUpdateFile, loadRegistry, processQueryFile
-from lib import processCheckins
+from lib import processCheckins, loadSettings
 import fire
 import sys
-
 
 class XReportCli(): 
   usage = \
@@ -38,17 +37,18 @@ class XReportCli():
     a public key and package the results as a JSON encrypted envelope 
     (jee file).
     """
-    out = out or "./protected.jee"
-    pubkey = pubkey or "samples/registry-public.pem"
+    settings = loadSettings()
+    out = out or settings["protectedFile"]
+    pubkey = pubkey or settings["registryPubkeyfile"]
     processCheckins(inputfile=checkin_csv, recipientKeyfile=pubkey, 
       outfile=out)
+    print "\nCheckin file '{}' processed. Created '{}'".format(checkin_csv, out)
 
   def help(self):
     """
     Print a usage string.
     """
     print XReportCli.usage
-
 
 # Run!
 if __name__ == '__main__':

@@ -9,6 +9,49 @@ from base64 import urlsafe_b64encode as b64enc, urlsafe_b64decode as b64dec
 from datetime import datetime, date
 import csv, json
 
+defaultSettingsFile = 'settings/settings.json'
+
+defaultSettings = {
+    "protectedFile": "./protected.jee",
+    "registryPubkeyfile": "settings/registry-public.pem",
+    "registryPrivkeyfile": "~/.ssh/registry-private.pem",
+    }
+
+def loadSettings(settingsfile=defaultSettingsFile):
+    """
+    Loads the current settings for this application.
+    """
+    s = {}
+    try:
+        s = readSettingsFile(settingsfile)
+    except IOError as e:
+        # Ignore IO and json parsing error
+        print "Warning: there was problem loading settings file '{}': {}\nUsing default settings instead.".format(
+            settingsfile, e)
+
+    # Start with the default settings and overwrite any settings
+    # read from the file.
+    rv = defaultSettings.copy()
+    for k,v in s:
+        rv[k] = v
+    return rv
+
+def readSettingsFile(settingsfile):
+    """
+    Overwrite defaults dict with any values found in settingsfile
+    """
+    settings = {}
+    with open(settingsfile, 'r') as f:
+        settings = json.loads(f.read())
+    return settings
+
+def writeDefaultSettings(settingsfile=defaultSettingsFile):
+    """
+    Writes the defaults settings to a file.
+    """
+    with open(settingsfile, 'w') as f:
+        f.write(json.dumps(defaultSettings))
+
 ###
 #
 # Operate on files containing demographic info in CSV format
