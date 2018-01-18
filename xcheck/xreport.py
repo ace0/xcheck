@@ -1,34 +1,20 @@
 """
 Command-line interface healthcare providers to report patient check-ins
 """
-# from crypto import createPubkeyPair
-# from match import processRegistryUpdateFile, loadRegistry, processQueryFile
-from lib import processCheckins, loadSettings
+from lib import processCheckins, loadSettings, mlStringCleanup
 import fire
 import sys
 
 class XReportCli(): 
-  usage = \
-  """Usage: xreport [COMMAND] [OPTIONS]
+  def __init__(self):
+    self.usage = \
+    """
+    Usage: xreport protect CHECKIN_CSV 
+        [--out CHECKIN_JEE]
+        [--pubkey REG_PUBLIC_PEM]
 
-  Simple:
-
-  xreport send CHECKIN_CSV 
-    Hashes, encrypts, and uploads a CSV of patient check-in information
-    using the values in settings.json
-
-
-  Others:
-  xreport protect CHECKIN_CSV 
-      [--out CHECKIN_JEE]
-      [--pubkey REG_PUBLIC_PEM] 
-    Hashes and encrypts a CSV, but does not upload
-
-  xreport upload CHECKIN_JEE
-      [--sshkey SFTP_PRIVATE]
-      [--server SFTP_ADDRESS]
-    Uploads a JSON encrypted envelope (jee) to an SFTP service
-  """
+    Hashes and encrypts a CSV so it can be uploaded to a registry.
+    """.strip()
 
   def protect(self, checkin_csv, out=None, pubkey=None):
     """
@@ -48,7 +34,7 @@ class XReportCli():
     """
     Print a usage string.
     """
-    print XReportCli.usage
+    print self.usage
 
 # Run!
 if __name__ == '__main__':

@@ -1,8 +1,6 @@
 TODO
 
-- Permutation tests
 - Hashing tests
-- Encryption tests
 
 - Generate fresh key that is not in the commit history
 - Update readme with new quickstart
