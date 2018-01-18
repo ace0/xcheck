@@ -1,7 +1,7 @@
 """
 Command-line interface healthcare providers to report patient check-ins
 """
-from lib import loadSettings, createPubkeyPair
+from lib import loadSettings, createPubkeyPair, processJee
 import fire
 import sys
 
@@ -20,6 +20,12 @@ class XCheckCli():
     Generates new public/private key pair in PEM format.
     """.strip()
 
+  def help(self):
+    """
+    Print a usage string.
+    """
+    print self.usage
+
   def newkeys(self):
     settings = loadSettings()
     print "\nCreating key pair -- this may take several seconds"
@@ -31,26 +37,19 @@ class XCheckCli():
       "mv registry-private.pem {}".format(settings["registryPrivkeyfile"])
       )
 
-  def help(self):
+  def process(self, checkin_jee, registry=None, privkey=None,):
     """
-    Print a usage string.
+    Process an uploade JEE file against a registry.
     """
-    print self.usage
+    settings = loadSettings()
+    registry = registry or settings["registryFile"]
+    privkey = privkey or settings["registryPrivkeyfile"]
 
-  # def protect(self, checkin_csv, out=None, pubkey=None):
-  #   """
-  #   Read and verify a CSV; transform entries according to partial-matching
-  #   rules; hash each entry with random salt; encrypt the dataset with 
-  #   a public key and package the results as a JSON encrypted envelope 
-  #   (jee file).
-  #   """
-  #   settings = loadSettings()
-  #   out = out or settings["protectedFile"]
-  #   pubkey = pubkey or settings["registryPubkeyfile"]
-  #   processCheckins(inputfile=checkin_csv, recipientKeyfile=pubkey, 
-  #     outfile=out)
-  #   print "\nCheckin file '{}' processed. Created '{}'".format(checkin_csv, out)
+    err = processJee(jeeFile=checkin_jee, registryFile=registry, 
+      privkeyFile=privkey)
 
+    if err is not None:
+        print "Error: {}".format(err)
 
 def printLines(*args):
   print '\n'.join(list(args))

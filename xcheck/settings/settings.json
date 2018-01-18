@@ -1,5 +1,6 @@
 {
 	"registryPrivkeyfile": "~/.ssh/registry-private.pem", 
  	"registryPubkeyfile": "settings/registry-public.pem", 
-    "protectedFile": "./protected.jee"
+    "protectedFile": "./protected.jee",
+    "registryFile": "settings/registry.csv"
 }

@@ -67,7 +67,65 @@ def printSettingsError(settingsfile, e):
 
 ###
 #
+# Process JEE files against a registry.csv
+
+def processJee(jeeFile, registryFile, privkeyFile):
+    # Read the JEE into memory
+    with open(jeeFile, 'rb') as f:
+        jeeText = f.read()
+
+    # Decrypt and verify the JEE contents
+    err, protectedEntries = publicKeyDecrypt(privkeyFile, jeeText)
+    if err is not None:
+        return err
+
+    # Segregate the protected entries into exact and partial matches
+    exactEntries, partialEntries = segregate(protectedEntries)
+
+    def printMatch(matchType, entry):
+        print "Found {} match: {}, {}, {}".format(matchType, *entry)
+
+    # LEFT OFF: there is some problem reporting partial matches
+
+    # Process the registry entries against the protected entries
+    matchFound = False
+    registryCount = 0
+    for entry, protectedEntry in processRegistry(registryFile):
+        registryCount += 1
+        if protectedEntry in exactEntries:
+            printMatch("exact", entry)
+            matchFound = True
+        elif protectedEntry in partialEntries:
+            printMatch("partial", entry)
+            matchFound = True
+
+    print "Processed {} checkin entries against {} registry entries".format(len(exactEntries), registryCount)
+    if matchFound == False:
+        print "No matches found"
+
+def segregate(entries):
+    exactEntries, partialEntries = set(), set()
+    for row in entries.split('\n'):
+        print row
+        isExact, entry = row.split(',')
+        if isExact:
+            exactEntries.add(entry)
+        else:
+            partialEntries.add(entry)
+    return exactEntries, partialEntries
+
+###
+#
 # Operate on files containing demographic info in CSV format
+
+def processRegistry(registryFile):
+    """
+    Processes a registry CSV and returns each entry in unprotected and
+    protected form:
+    yields: ( (n1,n2,bdate), protectedForm )
+    """
+    for entry in enumerateCsv(registryFile):
+        yield (entry, protectRecord(*entry))
 
 def processCheckins(inputfile, outfile, recipientKeyfile):
     """
@@ -256,7 +314,7 @@ def publicKeyEncrypt(recipientKeyfile, message):
 def publicKeyDecrypt(privkeyFile, jee):
     """
     Decrypts an encrypted message with a private (RSA) key.
-    Returns: (message, err)
+    Returns: (err, message)
     """
     privkey = None
     with open(privkeyFile, 'rb') as f:
@@ -279,9 +337,9 @@ def publicKeyDecrypt(privkeyFile, jee):
 
     # Recover the underlying message
     try:
-        return (aesDescrypt(msgKey, ctext), None)
+        return (None, aesDescrypt(msgKey, ctext))
     except ValueError:
-        return (None, decryptionFailedError)
+        return (decryptionFailedError, None)
 
 def createJee(pubkey, encMsg):
     """
@@ -303,7 +361,7 @@ def createJee(pubkey, encMsg):
     }
     return json.dumps(env)
 
-def decodeAndVerifyJee(pubkey, jsstxt):
+def decodeAndVerifyJee(pubkey, jeeText):
     """
     Parses and verifies a JSON encryption envelope against our default settings.
     Verifies the pubkey fingerprint against the pubkey provided.    
@@ -311,7 +369,7 @@ def decodeAndVerifyJee(pubkey, jsstxt):
     """
     env = {}
     try:
-        env = json.loads(jsstxt)
+        env = json.loads(jeeText)
     except ValueError as err:
         return (None, str(err))
 

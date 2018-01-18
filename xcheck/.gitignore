@@ -4,3 +4,4 @@ protected.jee
 ./testkey-public.pem
 ./registry-public.pem
 ./registry-private.pem
+settings/registry.csv
