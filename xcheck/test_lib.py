@@ -10,26 +10,8 @@ def test_scrubPrefixes():
     actual = [scrubPrefixes(x) for x in names]
     assert(expected == actual)
 
-# first_names = []
-# for i in names:
-#     new_name = i.split()
-#     if new_name[0] in prefixes:
-#         first_names.append(new_name[1:])
-#     else:
-#         first_names.append(new_name[0:])
-# print(first_names)
-
-
-
-# Script to clean the suffixes:
-
-# names = ["Rodriguez", "Walters III", "Hinami Jr.", "Fausto  Patel MA", "Sanchez-Johnson"]
-# suffixes = ["I", "II", "III", "IV", "Jr.", "Sr.", "Jr", "Sr", "MA", "MD", "1st", "2nd", "3rd"]
-# last_names = []
-# for i in names:
-#     new_name = i.split()
-#     if new_name[-1] in suffixes:
-#         last_names.append(new_name[:-1])
-#     else:
-#         last_names.append(new_name[0:])
-# print(last_names)
+def test_scrubSuffixes():
+    names = ["Rodriguez", "Walters III", "Hinami  Jr. ", "Fausto  Patel MA", "Sanchez-Johnson"]
+    expected = ["Rodriguez", "Walters", "Hinami", "Fausto Patel", "Sanchez-Johnson"]
+    actual = [scrubSuffixes(x) for x in names]
+    assert(expected == actual)

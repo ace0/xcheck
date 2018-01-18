@@ -194,20 +194,17 @@ def scrubPrefixes(name):
          names = names[0:]
     return ' '.join(names)
 
-
-
-# Script to clean the suffixes:
-
-# names = ["Rodriguez", "Walters III", "Hinami Jr.", "Fausto  Patel MA", "Sanchez-Johnson"]
-# suffixes = ["I", "II", "III", "IV", "Jr.", "Sr.", "Jr", "Sr", "MA", "MD", "1st", "2nd", "3rd"]
-# last_names = []
-# for i in names:
-#     new_name = i.split()
-#     if new_name[-1] in suffixes:
-#         last_names.append(new_name[:-1])
-#     else:
-#         last_names.append(new_name[0:])
-# print(last_names)
+def scrubSuffixes(name):
+    """
+    Removes commonly seen suffixes.
+    """
+    suffixes = ["I", "II", "III", "IV", "Jr.", "Sr.", "Jr", "Sr", "MA", "MD", "1st", "2nd", "3rd"]
+    names = name.split()
+    if names[-1] in suffixes:
+        names = names[:-1]
+    else:
+         names = names[0:]
+    return ' '.join(names)
 
 ###
 # 
