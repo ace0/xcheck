@@ -174,9 +174,12 @@ def canonize(name1, name2):
     in alphabetical ordering to ensure matching in the face of certain classes
     of typos.
     """
-    # Strips non-alphabetical characters and converts to uppercase
+    # Strips non-alphabetical characters, converts to uppercase, 
+    # removes known suffixes and prefixes.
     def stripAndUp(txt):
-        return ("".join(ch for ch in txt if ch.isalpha())).upper()
+        rv = scrubPrefixes(txt)
+        rv = scrubSuffixes(rv)
+        return ("".join(ch for ch in rv if ch.isalpha())).upper()
 
     # Strip and uppercase each name, sort to alphabetical order,
     # join and return
