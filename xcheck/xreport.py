@@ -1,7 +1,7 @@
 """
 Command-line interface healthcare providers to report patient check-ins
 """
-from lib import processCheckins, loadSettings, mlStringCleanup
+from lib import processCheckins, loadSettings
 import fire
 import sys
 

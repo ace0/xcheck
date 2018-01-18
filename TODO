@@ -1,5 +1,6 @@
 TODO
 
+- Generate registry keys
 - Hashing tests
 
 - Generate fresh key that is not in the commit history

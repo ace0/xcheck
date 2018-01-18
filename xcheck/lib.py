@@ -10,28 +10,28 @@ from datetime import datetime, date
 import csv, json
 
 ###
-# Constants
 #
+# Constants
 
 defaultSettingsFile = 'settings/settings.json'
 
 defaultSettings = {
     "protectedFile": "./protected.jee",
     "registryPubkeyfile": "settings/registry-public.pem",
-    "registryPrivkeyfile": "~/.ssh/registry-private.pem",
+    "registryPrivkeyfile": "~/.ssh/registry-private.pem"
     }
 
-
 ###
-# Public API
+#
+# Process settings
 
 def loadSettings(settingsfile=defaultSettingsFile):
     """
     Loads the current settings for this application.
     """
-    s = {}
+    settingsFromFile = {}
     try:
-        s = readSettingsFile(settingsfile)
+        settingsFromFile = readSettingsFile(settingsfile)
     except IOError as e:
         # Ignore IO and json parsing error
         print "Warning: there was problem loading settings file '{}': {}\nUsing default settings instead.".format(
@@ -39,10 +39,9 @@ def loadSettings(settingsfile=defaultSettingsFile):
 
     # Start with the default settings and overwrite any settings
     # read from the file.
-    rv = defaultSettings.copy()
-    for k,v in s:
-        rv[k] = v
-    return rv
+    settings = defaultSettings.copy()
+    settings.update(settingsFromFile)
+    return settings
 
 def readSettingsFile(settingsfile):
     """
