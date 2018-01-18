@@ -9,6 +9,10 @@ from base64 import urlsafe_b64encode as b64enc, urlsafe_b64decode as b64dec
 from datetime import datetime, date
 import csv, json
 
+###
+# Constants
+#
+
 defaultSettingsFile = 'settings/settings.json'
 
 defaultSettings = {
@@ -16,6 +20,10 @@ defaultSettings = {
     "registryPubkeyfile": "settings/registry-public.pem",
     "registryPrivkeyfile": "~/.ssh/registry-private.pem",
     }
+
+
+###
+# Public API
 
 def loadSettings(settingsfile=defaultSettingsFile):
     """
@@ -213,8 +221,13 @@ def scrubSuffixes(name):
 # 
 # Working with encrypted files
 
-# Constant
+# Constants
 symmetricKeySizeBytes = 128/8
+encMsgKeyBytes = 384
+rsaKeySize = 3072
+
+publicKeyDecryptError = "This is an rsa PUBLIC key, but an rsa PRIVATE key is required for decryption."
+decryptionFailedError = "Decryption failed. Encrypted message is not valid."
 
 def publicKeyEncrypt(recipientKeyfile, message):
     """
@@ -226,7 +239,7 @@ def publicKeyEncrypt(recipientKeyfile, message):
         recipientKey = RSA.import_key(f.read())
 
     # Encrypt the message with AES-GCM using a newly selected key
-    messageKey, ctext = _aesEncrypt(message)
+    messageKey, ctext = aesEncrypt(message)
 
     # Encrypt the message key and prepend it to the ciphertext
     cipher = PKCS1_OAEP.new(recipientKey)
@@ -261,7 +274,7 @@ def publicKeyDecrypt(privkeyFile, jee):
 
     # Recover the underlying message
     try:
-        return (_aesDescrypt(msgKey, ctext), None)
+        return (aesDescrypt(msgKey, ctext), None)
     except ValueError:
         return (None, decryptionFailedError)
 
@@ -347,7 +360,7 @@ def _writePemFile(filename, key):
     with open(filename, 'wt') as outfile:
         outfile.write(key.exportKey(format='PEM'))
 
-def _aesEncrypt(message):
+def aesEncrypt(message):
     """
     Encrypts a message with a fresh key using AES-GCM. 
     Returns: (key, ciphertext)
@@ -359,7 +372,7 @@ def _aesEncrypt(message):
     # Concatenate (nonce, tag, ctext) and return with key
     return key, (cipher.nonce + tag + ctext)
 
-def _aesDescrypt(key, ctext):
+def aesDescrypt(key, ctext):
     """
     Decrypts and authenticates a ciphertext encrypted with with given key.
     """
