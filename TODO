@@ -1,39 +1,6 @@
 TODO
 
-- Generate registry keys
-- Hashing tests
-
-- Generate fresh key that is not in the commit history
 - Update readme with new quickstart
 - Update readme with new explainer
-
-
-
-
-Review later:
-
-- Split upload/registry commands
-- Remove PRFsecret -- switch 
-- cli: process -- Add decryption
-- Add settings.json with default settings
-- SFTP transfer functions
-- cli: upload
-
-- Add xcheck python API 
-- Add instructions for python API in README
-
-- Add sensitive files to .gitignore (.prfsecret, *-private.pem)
-
-- Automatically detect number of CPUs and fan out the computation
-
-- Reorganize? 
--- crypto.py -- encryption and low-level tools
--- registry.py  -- registry-related operations: loadRegistry, updateRegistry
--- xcheck.py -- CLI and API?
--- match.py -- perform matching 
--- Or: put all into one file. xheck.py with CLI and all operations?
-
-- Some entries mix file and file contents. Need to standardize
-- PubkeyEnc/Dec need to take contents-not-files and maybe add a wrapper that
-  operates on files-not-contents
-
+- pip installer
+- Remove old code in Archive

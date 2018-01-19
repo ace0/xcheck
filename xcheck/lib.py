@@ -85,8 +85,6 @@ def processJee(jeeFile, registryFile, privkeyFile):
     def printMatch(matchType, entry):
         print "Found {} match: {}, {}, {}".format(matchType, *entry)
 
-    # LEFT OFF: there is some problem reporting partial matches
-
     # Process the registry entries against the protected entries
     matchFound = False
     registryCount = 0
@@ -105,13 +103,20 @@ def processJee(jeeFile, registryFile, privkeyFile):
 
 def segregate(entries):
     exactEntries, partialEntries = set(), set()
+    cnt = 0
     for row in entries.split('\n'):
-        print row
+        cnt += 1
         isExact, entry = row.split(',')
-        if isExact:
+        isExact = isExact.strip().lower()
+
+        if isExact == "true":
             exactEntries.add(entry)
-        else:
+        elif isExact == "false":
             partialEntries.add(entry)
+        else:
+            print "Warning: Unknown matching identifier in first column of row {}. Expected: [True|False] but found {}.".format(
+                cnt, isExact)
+
     return exactEntries, partialEntries
 
 ###
