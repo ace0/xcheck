@@ -327,12 +327,12 @@ def publicKeyDecrypt(privkeyFile, jee):
 
     # Verify that this is a private key
     if not privkey.has_private():
-        return (None, publicKeyDecryptError)
+        return (publicKeyDecryptError, None)
 
     # Verify the JEE and extract the encrypted message
-    encMsg, err = decodeAndVerifyJee(privkey.publickey(), jee)
+    err, encMsg = decodeAndVerifyJee(privkey.publickey(), jee)
     if err:
-        return (None, err)
+        return (err, None)
 
     # Separate the encrypted message key from the symmetric-encrypted portion.
     encKey, ctext = encMsg[:encMsgKeyBytes], encMsg[encMsgKeyBytes:]
@@ -370,13 +370,13 @@ def decodeAndVerifyJee(pubkey, jeeText):
     """
     Parses and verifies a JSON encryption envelope against our default settings.
     Verifies the pubkey fingerprint against the pubkey provided.    
-    Returns: (enc_data, error)
+    Returns: (err, enc_data)
     """
     env = {}
     try:
         env = json.loads(jeeText)
     except ValueError as err:
-        return (None, str(err))
+        return (str(err), None)
 
     expectedFpB64 = b64enc(pkFingerprint(pubkey))
 
@@ -400,7 +400,7 @@ def decodeAndVerifyJee(pubkey, jeeText):
     if not "enc_msg" in env or len(env["enc_msg"]) == 0:
         return (None, "Encrypted message is missing or empty (enc_msg)")
 
-    return b64dec(str(env["enc_msg"])), None
+    return None, b64dec(str(env["enc_msg"]))
 
 def pkFingerprint(pubkey):
     """

@@ -155,15 +155,16 @@ def test_dtBadDate():
 def test_pkDecryptWithPubkey():
     message = "Three may keep a secret, if two of them are dead."
     jee = publicKeyEncrypt("samples/testkey-public.pem", message)
-    recoveredMessage, err = publicKeyDecrypt("samples/testkey-public.pem", jee)
+    err, recoveredMessage = publicKeyDecrypt("samples/testkey-public.pem", jee)
+    print "err: ", err
+    print "recoveredMessage: ", recoveredMessage
     assert(recoveredMessage is None)
     assert(err == publicKeyDecryptError)
 
 def test_pkEncryptRoundTrip():
     message = "Three may keep a secret, if two of them are dead."
     jee = publicKeyEncrypt("samples/testkey-public.pem", message)
-    print jee
-    recoveredMessage, err = publicKeyDecrypt("samples/testkey-private.pem", jee)
+    err, recoveredMessage = publicKeyDecrypt("samples/testkey-private.pem", jee)
     assert(err is None)
     assert(message == recoveredMessage)
 
