@@ -30,7 +30,7 @@ python xreport.py protect samples/checkin.csv --pubkey samples/testkey-public.pe
 
 ### Compare the encrypted test file against a demo registry
 ```
-python xcheck.py process protected.jee --registry samples/registry.csv --privkey samples/testkey-private.pem --pubkey samples/testkey-public.pem
+python xcheck.py process protected.jee --registry samples/registry.csv --privkey samples/testkey-private.pem
 ```
 Expected output:
 ```
