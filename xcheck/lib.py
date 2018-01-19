@@ -11,19 +11,15 @@ import csv, json
 
 ###
 #
+# Process settings
+
 # Constants
-
 defaultSettingsFile = 'settings/settings.json'
-
 defaultSettings = {
     "protectedFile": "./protected.jee",
     "registryPubkeyfile": "settings/registry-public.pem",
     "registryPrivkeyfile": "~/.ssh/registry-private.pem"
     }
-
-###
-#
-# Process settings
 
 def loadSettings(settingsfile=defaultSettingsFile):
     """
