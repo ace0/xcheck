@@ -4,16 +4,20 @@ xCheck permits membership checking of demographic information against a registry
 ## Quickstart for healthcare providers to submit demographic information to the registry
 
 ### Install prerequisites and xCheck
-xCheck requires python 2.7
+xCheck requires python 2.7 
+
+Windows users may find Anaconda useful: https://anaconda.com/download
+On Windows, the commands below can be run from the Anaconda Prompt.
 
 Install Python libraries.
-MacOS + Linux:
+MacOS + Linux, and Windows from the Anaconda Prompt.
 ```
-### Install python libraries
-sudo -H pip install pycryptodome
-sudo -H pip install pytest
+# Install python libraries
+pip install pycryptodome
+pip install pytest
+pip install fire
 
-### Download xCheck and run tests
+# Download xCheck and run tests
 git clone git@github.com:ace0/xcheck.git
 cd xcheck/xcheck
 pytest
@@ -21,18 +25,12 @@ pytest
 
 ### Build an encrypted test file
 ```
-python xcheck.py process protected.jee \
-	--registry samples/registry.csv \
-	--privkey samples/testkey-private.pem \
-	--pubkey samples/testkey-public.pem
+python xreport.py protect samples/checkin.csv --pubkey samples/testkey-public.pem
 ```
 
 ### Compare the encrypted test file against a demo registry
 ```
-python xcheck.py process protected.jee \
-    --registry samples/registry.csv \
-    --privkey samples/testkey-private.pem \
-    --pubkey samples/testkey-public.pem
+python xcheck.py process protected.jee --registry samples/registry.csv --privkey samples/testkey-private.pem
 ```
 Expected output:
 ```
@@ -41,11 +39,3 @@ Found partial match: Phylis, Bravo, 1960-05-20
 Found partial match: Angla, Lockett, 2000-05-20
 Processed 4 checkin entries against 10 registry entries
 ```
-
-Upload a test query
-```
-echo "name1,name2,birthdate" > testupload.csv
-echo "sample,sample,2009-05-01" >> testupload.csv
-xcheck upload ./testupload.csv
-```
-
