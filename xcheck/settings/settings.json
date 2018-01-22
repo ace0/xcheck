@@ -2,5 +2,5 @@
 	"registryPrivkeyfile": "~/.ssh/registry-private.pem", 
  	"registryPubkeyfile": "settings/registry-public.pem", 
     "protectedFile": "./protected.jee",
-    "registryFile": "settings/registry.csv"
+    "registryFile": "settings/protected-registry"
 }

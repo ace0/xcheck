@@ -1,7 +1,7 @@
 """
 Command-line interface healthcare providers to report patient check-ins
 """
-from lib import loadSettings, createPubkeyPair, processJee
+from lib import loadSettings, createPubkeyPair, processJee, processRegistry
 import fire
 import sys
 
@@ -11,8 +11,12 @@ class XCheckCli():
     """
     Usage: xcheck [COMMAND] [ARGUMENTS]
 
+    xcheck hash REGISTRY_CSV
+      [--output PROTECTED_REGISTRY] 
+    Process a registry with demographic information in CSV format. Hash each entry and write to a new file.
+
     xcheck process CHECKIN_JEE 
-        [--registry REGISTRY_CSV]
+        [--registry PROTECTED_REGISTRY]
         [--privkey PATH_PRIVKEY_PEM]
     Decrypt and process an encrypted/hashed JEE file against a registry in CSV format. Matches are printed to STDOUT. 
 
@@ -36,6 +40,16 @@ class XCheckCli():
       "mv registry-public.pem {}".format(settings["registryPubkeyfile"]),
       "mv registry-private.pem {}".format(settings["registryPrivkeyfile"])
       )
+
+  def hash(self, registry_csv, output=None):
+    """
+    Process a registry.csv into a new file file containing protected 
+    (hashed) records.
+    """
+    settings = loadSettings()
+    output = output or settings["registryFile"]
+    processRegistry(registryCsvfile=registry_csv, registryOutfile=output)
+    print "Created protected registry: {}".format(output)
 
   def process(self, checkin_jee, registry=None, privkey=None,):
     """

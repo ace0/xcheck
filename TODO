@@ -1,6 +1,6 @@
 TODO
 
-- Update readme with new quickstart
-- Update readme with new explainer
+- Adjust process to operate and pre-hashed registry file
+- Test command line
+- Update quickstart documentation
 - pip installer
-- Remove old code in Archive

@@ -18,7 +18,8 @@ defaultSettingsFile = 'settings/settings.json'
 defaultSettings = {
     "protectedFile": "./protected.jee",
     "registryPubkeyfile": "settings/registry-public.pem",
-    "registryPrivkeyfile": "~/.ssh/registry-private.pem"
+    "registryPrivkeyfile": "~/.ssh/registry-private.pem",
+    "registryFile": "settings/protected-registry"
     }
 
 def loadSettings(settingsfile=defaultSettingsFile):
@@ -119,14 +120,15 @@ def segregate(entries):
 #
 # Operate on files containing demographic info in CSV format
 
-def processRegistry(registryFile):
+def processRegistry(registryCsvfile, registryOutfile):
     """
-    Processes a registry CSV and returns each entry in unprotected and
-    protected form:
-    yields: ( (n1,n2,bdate), protectedForm )
+    Processes a registry CSV and produces a new file containing protected
+    records.
     """
-    for entry in enumerateCsv(registryFile):
-        yield (entry, protectRecord(*entry))
+    with open(registryOutfile, 'wt') as f:
+        for entry in enumerateCsv(registryCsvfile):
+            f.write(protectRecord(*entry))
+            f.write("\n")
 
 def processCheckins(inputfile, outfile, recipientKeyfile):
     """
@@ -138,7 +140,7 @@ def processCheckins(inputfile, outfile, recipientKeyfile):
     txt = '\n'.join([x for x in permuteAndProtectCheckins(inputfile)])
 
     # Encrypt the contents and write it to a file
-    with open(outfile, 'w+t') as f:
+    with open(outfile, 'wt') as f:
         f.write(publicKeyEncrypt(recipientKeyfile, txt))
 
 def permuteAndProtectCheckins(inputfile):
