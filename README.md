@@ -23,6 +23,12 @@ cd xcheck/xcheck
 pytest
 ```
 
+
+### Process a registry 
+```
+python xcheck.py hash samples/registry.csv
+```
+
 ### Build an encrypted test file
 ```
 python xreport.py protect samples/checkin.csv --pubkey samples/testkey-public.pem
@@ -30,12 +36,13 @@ python xreport.py protect samples/checkin.csv --pubkey samples/testkey-public.pe
 
 ### Compare the encrypted test file against a demo registry
 ```
-python xcheck.py process protected.jee --registry samples/registry.csv --privkey samples/testkey-private.pem
+python xcheck.py process protected.jee --privkey samples/testkey-private.pem
 ```
+
 Expected output:
 ```
-Found exact match: Benita, Harwell, 1950-05-20
-Found partial match: Phylis, Bravo, 1960-05-20
-Found partial match: Angla, Lockett, 2000-05-20
+Found exact match: 6WN4BC5uojFiP4BZDivhNAtF8hTtOvS53B6M0CDOE-qLbUnILZ13ETcwPsgWr9BrmX1yPz930AoFeY9peoE_TA==
+Found partial match: DhkR2-7K1IjSlpvc9Mp4yeVlB0Gs2AGlhHWQd-VVuLWdTwCWV3ClLeIFA91Snuey0YN6k5omL449zK-aruJWFw==
+Found partial match: CwMOlE7spz9OdPCVN6UyoTb4mkri9Ov5RLs8QbXV2Bfmdpl-Irgjmwk6eWVKC9zQOFrZpsod4uJNhshA77t99Q==
 Processed 4 checkin entries against 10 registry entries
 ```

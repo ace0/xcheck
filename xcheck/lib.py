@@ -7,7 +7,7 @@ from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256, SHA512
 from base64 import urlsafe_b64encode as b64enc, urlsafe_b64decode as b64dec
 from datetime import datetime, date
-import csv, json
+import binascii, csv, json
 
 ###
 #
@@ -77,26 +77,39 @@ def processJee(jeeFile, registryFile, privkeyFile):
         return err
 
     # Segregate the protected entries into exact and partial matches
-    exactEntries, partialEntries = segregate(protectedEntries)
+    exact, partial = segregate(protectedEntries)
+    registryCount, matchFound = match(exact, partial, registryFile)
 
+    print "Processed {} checkin entries against {} registry entries".format(len(exact), registryCount)
+    if matchFound == False:
+        print "No matches found"
+
+def match(checkinExact, checkinPartial, registryFile):
+    """
+    Matches registry entries against exact and partial entries from a protected check-in file.
+    """
     def printMatch(matchType, entry):
-        print "Found {} match: {}, {}, {}".format(matchType, *entry)
+        print "Found {} match: {}".format(matchType, entry)
 
     # Process the registry entries against the protected entries
     matchFound = False
     registryCount = 0
-    for entry, protectedEntry in processRegistry(registryFile):
-        registryCount += 1
-        if protectedEntry in exactEntries:
-            printMatch("exact", entry)
-            matchFound = True
-        elif protectedEntry in partialEntries:
-            printMatch("partial", entry)
-            matchFound = True
 
-    print "Processed {} checkin entries against {} registry entries".format(len(exactEntries), registryCount)
-    if matchFound == False:
-        print "No matches found"
+    with open(registryFile, 'r') as f:
+        for entry in f:
+            entry = entry.strip()            
+            registryCount += 1
+
+            # First check for an exact match
+            if entry in checkinExact:
+                printMatch("exact", entry)
+                matchFound = True
+
+            # Then a partial match
+            elif entry in checkinPartial:
+                printMatch("partial", entry)
+                matchFound = True
+    return (registryCount, matchFound)
 
 def segregate(entries):
     exactEntries, partialEntries = set(), set()
