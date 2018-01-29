@@ -81,7 +81,7 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
 
     checkinCount, matchFound = match(checkinTxt, exact, partial)
 
-    print "Processed {} checkin entries against {} registry entries".format(
+    print "Processed {} uploaded records against {} registry entries".format(
         checkinCount, len(exact))
     if matchFound == False:
         print "No matches found"
