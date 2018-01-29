@@ -62,7 +62,7 @@ class XCheckCli():
     registry = registry or settings["registryFile"]
     privkey = privkey or settings["registryPrivkeyfile"]
 
-    err = processJee(jeeFile=checkin_jee, registryFile=registry, 
+    err = processJee(jeeFile=checkin_jee, protectedRegistryFile=registry, 
       privkeyFile=privkey)
 
     if err is not None:
