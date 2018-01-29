@@ -4,7 +4,6 @@ TODO
 - Add SiteId to check-in file format 
 - Add SiteId to matching output
 - Update example files and test
-- Change birthyear updates to +- decade only
 - Update README if necessary
 
 - Switch partial match record enumeration to the registry processing

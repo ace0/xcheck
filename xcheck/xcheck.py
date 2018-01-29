@@ -1,9 +1,10 @@
 """
 Command-line interface healthcare providers to report patient check-ins
 """
-from lib import loadSettings, createPubkeyPair, processJee, processRegistry
+from lib import (loadSettings, createPubkeyPair, processJee, processRegistry,
+  printLines)
 import fire
-import sys
+import platform, sys
 
 class XCheckCli(): 
   def __init__(self):
@@ -35,10 +36,12 @@ class XCheckCli():
     print "\nCreating key pair -- this may take several seconds"
     createPubkeyPair(basename="registry")
 
+    mv = moveCmd()
     printLines("Created new key pair: registry-public.pem, registry-private.pem",
-      "To put into the default locations, run:\n",
-      "mv registry-public.pem {}".format(settings["registryPubkeyfile"]),
-      "mv registry-private.pem {}".format(settings["registryPrivkeyfile"])
+      "To put into the default locations, run:",
+      "",
+      "{} registry-public.pem {}".format(mv, settings["registryPubkeyfile"]),
+      "{} registry-private.pem {}".format(mv, settings["registryPrivkeyfile"])
       )
 
   def hash(self, registry_csv, output=None):
@@ -65,8 +68,16 @@ class XCheckCli():
     if err is not None:
         print "Error: {}".format(err)
 
-def printLines(*args):
-  print '\n'.join(list(args))
+def moveCmd():
+  """
+  Selects the correct move command. 
+  For Windows/win32: "move"; 
+  all others (and default): "mv"
+  """
+  if platform.system().lower().startswith("win"):
+    return "move"
+  else:
+    return "mv"
 
 # Run!
 if __name__ == '__main__':

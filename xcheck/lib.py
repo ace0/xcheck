@@ -88,8 +88,11 @@ def match(checkinExact, checkinPartial, registryFile):
     """
     Matches registry entries against exact and partial entries from a protected check-in file.
     """
-    def printMatch(matchType, entry):
-        print "Found {} match: {}".format(matchType, entry)
+    def printMatch(matchType, entry, reportingSite, registrySite):
+        printLines("Found {} match: {}".format(matchType, entry),
+            "  Reporting site: {}".format(reportingSite),
+            "  Registry site:  {}".format(registrySite),
+            "")
 
     # Process the registry entries against the protected entries
     matchFound = False
@@ -97,37 +100,44 @@ def match(checkinExact, checkinPartial, registryFile):
 
     with open(registryFile, 'r') as f:
         for entry in f:
-            entry = entry.strip()            
+            (registrySite, precord) = entry.strip().split(",")
             registryCount += 1
 
+            # TODO: Note that siteIds will need to switch once reporting/registry
+            #       enumeration changes
+
             # First check for an exact match
-            if entry in checkinExact:
-                printMatch("exact", entry)
+            if precord in checkinExact:
+                printMatch("exact", precord, checkinExact[precord], registrySite)
                 matchFound = True
 
             # Then a partial match
-            elif entry in checkinPartial:
-                printMatch("partial", entry)
+            elif precord in checkinPartial:
+                printMatch("partial", precord, checkinPartial[precord], registrySite)
                 matchFound = True
     return (registryCount, matchFound)
 
 def segregate(entries):
-    exactEntries, partialEntries = set(), set()
+    """1
+    Segregates a list of entries into two dictionaries that map record->siteId.
+    @return: (exactMatchDict, partialMatchDict)
+    """
+    exactDict, partialDict = {}, {}
     cnt = 0
     for row in entries.split('\n'):
         cnt += 1
-        isExact, entry = row.split(',')
+        isExact, siteId, entry = row.split(',')
         isExact = isExact.strip().lower()
 
         if isExact == "true":
-            exactEntries.add(entry)
+            exactDict[entry] = siteId
         elif isExact == "false":
-            partialEntries.add(entry)
+            partialDict[entry] = siteId
         else:
             print "Warning: Unknown matching identifier in first column of row {}. Expected: [True|False] but found {}.".format(
                 cnt, isExact)
 
-    return exactEntries, partialEntries
+    return exactDict, partialDict
 
 ###
 #
@@ -139,8 +149,8 @@ def processRegistry(registryCsvfile, registryOutfile):
     records.
     """
     with open(registryOutfile, 'wt') as f:
-        for entry in enumerateCsv(registryCsvfile):
-            f.write(protectRecord(*entry))
+        for (s,n1,n2,d) in enumerateCsv(registryCsvfile):
+            f.write(fmtOutput(s,n1,n2,d))
             f.write("\n")
 
 def processCheckins(inputfile, outfile, recipientKeyfile):
@@ -164,41 +174,49 @@ def permuteAndProtectCheckins(inputfile):
     yields (isExactInfo, b64ProtectedRecord) 
     """
     # Process validates entries read from the input file
-    for (n1,n2,bdate) in enumerateCsv(inputfile):
+    for (s, n1,n2,bdate) in enumerateCsv(inputfile):
         # Yield the complete match record
-        yield fmtOutput(True, (n1,n2,bdate))
+        yield fmtOutput(s, n1, n2, bdate, exactMatch=True)
 
         # Yield each alternative birthdate
         for altBdate in dateRange(bdate):
-            yield fmtOutput(False, (n1,n2,altBdate))
+            yield fmtOutput(s, n1, n2, altBdate, exactMatch=False)
 
-def fmtOutput(exactMatch, record):
+def fmtOutput(siteId, name1, name2, bdate, exactMatch=None):
     """
-    Formates a protected CSV entry as:
-    exactMatch, protect(record)
-    @record=(name1,name2,birthdate)
+    Formats a protected CSV entry. 
+    If exactMatch is specified as a bool, returns:
+    "isExactMatch,siteId,protect(record)"
+
+    If exactMatch=None, returns:
+    "siteId,protect(record)"
+    @record=(siteId,name1,name2,birthdate)
     """
-    return '{},{}'.format(str(exactMatch), protectRecord(*record))
+    record = protectRecord(name1, name2, bdate)
+    if exactMatch is None:
+        return '{},{}'.format(siteId, record)
+    else:
+        return '{},{},{}'.format(str(exactMatch), siteId, record)
 
 def enumerateCsv(inputfile):
     """
     Reads and validates a CSV file of demographic information. 
     Requires a well-formed header row and converts text dates to date objects.
-    yields: (name1, name2, date(birthdate))
+    yields: (siteId, name1, name2, date(birthdate))
     """
     with open(inputfile, 'rt') as f:
         reader = csv.reader(f)
 
         # Verify the header row is as expected as a sanity check
         hdr = reader.next()
-        if hdr != ["name1", "name2", "birthdate"]:
+        if hdr != ["siteId", "name1", "name2", "birthdate"]:
             raise err(ValueError, """The file '{}' is incorrectly formatted. 
                 Header row does not match expected header row.""",
                 inputfile)
 
         # Then, process each line as a query
-        for [name1, name2, birthdate] in reader:
-            yield name1, name2, dt(birthdate)
+        for [siteId, name1, name2, birthdate] in reader:
+            yield str(siteId), name1, name2, dt(birthdate)
 
 def dateRange(orig, dayOffsets=[1,-1], yearOffsets=[10,-10], swapMonthDay=True):
     """
@@ -471,8 +489,10 @@ def aesDescrypt(key, ctext):
     return cipher.decrypt_and_verify(ct, tag)
 
 ###
-#
-# Utilities
+## Utilities
+
+def printLines(*args):
+  print "\n".join(list(args))
 
 def dt(txt, fmt='%Y-%m-%d'):
     """

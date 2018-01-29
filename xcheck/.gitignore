@@ -5,3 +5,5 @@ protected.jee
 ./registry-public.pem
 ./registry-private.pem
 settings/registry.csv
+settings/protected-registry
+.DS_Store
