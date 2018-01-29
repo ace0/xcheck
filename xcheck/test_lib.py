@@ -67,35 +67,7 @@ def test_dateRange():
     expected = set([
         # year +-10
         date(1990, 5, 20), 
-        date(1991, 5, 20), 
-        date(1992, 5, 20), 
-        date(1993, 5, 20), 
-        date(1994, 5, 20), 
-        date(1995, 5, 20), 
-        date(1996, 5, 20), 
-        date(1997, 5, 20), 
-        date(1998, 5, 20), 
-        date(1999, 5, 20), 
-        date(2001, 5, 20), 
-        date(2002, 5, 20), 
-        date(2003, 5, 20), 
-        date(2004, 5, 20), 
-        date(2005, 5, 20), 
-        date(2006, 5, 20), 
-        date(2007, 5, 20), 
-        date(2008, 5, 20), 
-        date(2009, 5, 20), 
         date(2010, 5, 20), 
-        date(2001, 5, 20), 
-        date(2002, 5, 20), 
-        date(2003, 5, 20), 
-        date(2004, 5, 20), 
-        date(2005, 5, 20), 
-        date(2006, 5, 20), 
-        date(2007, 5, 20), 
-        date(2008, 5, 20), 
-        date(2009, 5, 20), 
-        date(2010, 5, 20),
 
         # day +-1
         date(2000, 5, 19),
@@ -105,7 +77,7 @@ def test_dateRange():
 
 def test_dateRangeSwap():
     founded = date(1848, 6, 5)
-    actual = [x for x in dateRange(founded, yearOffset=0, dayOffset=0)]
+    actual = [x for x in dateRange(founded, yearOffsets=None, dayOffsets=None)]
     assert(actual == [date(1848, 5, 6)])
 
 def test_dateRangeOutOfRange():
@@ -113,17 +85,9 @@ def test_dateRangeOutOfRange():
     Ensures that dateRange exclude dates that are out of range.
     """
     founded = date(1817, 01, 29)
-    expected = set([
-            date(1817, 01, 24), 
-            date(1817, 01, 25), 
-            date(1817, 01, 26), 
-            date(1817, 01, 27), 
-            date(1817, 01, 28), 
-            date(1817, 01, 30), 
-            date(1817, 01, 31)
-        ])
-    actual = set([x for x in dateRange(founded, yearOffset=0, dayOffset=5, 
-            swapMonthDay=False)])
+    expected = [date(1817, 01, 24)]
+    actual = [x for x in dateRange(founded, yearOffsets=None, 
+        dayOffsets=[-5,+5], swapMonthDay=False)]
     assert(actual == expected)
 
 def test_plusminus():

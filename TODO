@@ -1,3 +1,14 @@
 TODO
 
-- pip installer
+- Add SiteId to registry file format
+- Add SiteId to check-in file format 
+- Add SiteId to matching output
+- Update example files and test
+- Change birthyear updates to +- decade only
+- Update README if necessary
+
+- Switch partial match record enumeration to the registry processing
+- Add comments for adjusting date range to +- 10 years range
+- Move errors in input file to a separate problems folder
+
+- pip installer?

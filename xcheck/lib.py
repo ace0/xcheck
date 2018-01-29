@@ -200,11 +200,12 @@ def enumerateCsv(inputfile):
         for [name1, name2, birthdate] in reader:
             yield name1, name2, dt(birthdate)
 
-def dateRange(orig, dayOffset=1, yearOffset=10, swapMonthDay=True):
+def dateRange(orig, dayOffsets=[1,-1], yearOffsets=[10,-10], swapMonthDay=True):
     """
     Iterates through partial match dates
     """
     assert(type(orig) == date)
+
     # Swap month and day of month if they make a valid date
     if swapMonthDay:
         d = replace(orig, month=orig.day, day=orig.month)
@@ -212,16 +213,25 @@ def dateRange(orig, dayOffset=1, yearOffset=10, swapMonthDay=True):
             yield d
 
     # Iterate through day offsets and return all valid dates
-    for day in plusminus(orig.day, dayOffset):
-        d = replace(orig, day=day)
-        if d:
-            yield d
+    if dayOffsets:
+        for day in offsetRange(orig.day, dayOffsets):
+            d = replace(orig, day=day) 
+            if d is not None:
+                yield d
 
     # Iterate through all year offsets and return all valid dates
-    for year in plusminus(orig.year, yearOffset):
-        d = replace(orig, year=year)
-        if d:
-            yield d
+    if yearOffsets:
+        for year in offsetRange(orig.year, yearOffsets):
+            d = replace(orig, year=year) 
+            if d is not None:
+                yield d
+
+def offsetRange(value, offsets):
+    """
+    Enumerates a range of discrete offsets excluding the value.
+    """
+    for offset in offsets:
+        yield value + offset
 
 def plusminus(value, offset):
     """
