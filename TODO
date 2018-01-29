@@ -1,13 +1,10 @@
 TODO
 
-- Add SiteId to registry file format
-- Add SiteId to check-in file format 
-- Add SiteId to matching output
 - Update example files and test
 - Update README if necessary
+- Add name1/2 initial as part of a name permutation
 
 - Switch partial match record enumeration to the registry processing
-- Add comments for adjusting date range to +- 10 years range
 - Move errors in input file to a separate problems folder
 
 - pip installer?
