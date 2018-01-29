@@ -103,21 +103,12 @@ def match(checkinTxt, exactMatch, partialMatch):
 
     for row in checkinTxt.split("\n"):
         checkinCount += 1
-        err, isExact,checkinSiteId,protectedEntry = parseRow(row)
+        err,isExact,checkinSiteId,protectedEntry = parseRow(row)
 
         if err is not None:
             printLines("Found a problem in check-in entry number {}: {}".format(
                 checkinCount, err), 
                 "  Original record is: {}".format(row),
-                "  Skipping this record", 
-                "")
-            continue
-
-        if isExact != True:
-            printLines("Found a problem in entry number {}".format(
-                checkinCount), 
-                "  All check-in entries are expected to be marked as " \
-                "exactMatch, but this entry is marked as partial match."
                 "  Skipping this record", 
                 "")
             continue
@@ -206,10 +197,11 @@ def processRegistry(registryCsvfile, registryOutfile):
     Processes a registry CSV and produces a new file containing protected
     records.
     """
-    with open(registryOutfile, 'wt') as f:
+    with open(registryOutfile, "w") as f:
         f.write("exactMatch,siteId,protectedEntry\n")
 
-        for entry in protectAndFormat(registryCsvfile, permute=True):
+        for entry in protectAndFormat(registryCsvfile, partialMatchDates=True, 
+            partialMatchNames=True):
             f.write(entry)
             f.write("\n")
 
@@ -221,21 +213,21 @@ def processCheckins(inputfile, outfile, recipientKeyfile):
     """
     # Generate an entire protected record CSV in-memory
     txt = "\n".join([x for x in protectAndFormat(inputfile, 
-        permute=False)])
+        partialMatchDates=False, partialMatchNames=True)])
 
     # Encrypt the contents and write it to a file
-    with open(outfile, 'wt') as f:
+    with open(outfile, "w") as f:
         f.write(publicKeyEncrypt(recipientKeyfile, txt))
 
-def protectAndFormat(inputfile, permute):
+def protectAndFormat(inputfile, partialMatchDates, partialMatchNames):
     """
     Reads and validates a CSV of demographic info and yields formatted
-    records with demographic information processed with the protectRecord
+    records with demographic information processed with the protectedEntry
     function.
 
-    if permute=True, partial match permutations are applied to each record.
+    if partialMatch=True, partial match permutations are applied to each record.
 
-    yields: (isExactInfo, siteId, b64ProtectedRecord) 
+    yields: (isExactInfo, siteId, b64ProtectedEntry) 
     """
     # Process validates entries read from the input file
     for (s,n1,n2,bdate) in enumerateCsv(inputfile):
@@ -243,25 +235,21 @@ def protectAndFormat(inputfile, permute):
         yield fmtOutput(s, n1, n2, bdate, exactMatch=True)
 
         # Run through partial match permutations
-        if permute:
-            for altBdate in dateRange(bdate):
+        if partialMatchNames:
+            for altName in alternateNames(n1,n2):
+                yield fmtOutput(s, altName, "", bdate, exactMatch=False)
+
+        if partialMatchDates:
+            for altBdate in alternateDates(bdate):
                 yield fmtOutput(s, n1, n2, altBdate, exactMatch=False)
 
-def fmtOutput(siteId, name1, name2, bdate, exactMatch=None):
+def fmtOutput(siteId, name1, name2, bdate, exactMatch):
     """
-    Formats a protected CSV entry. 
-    If exactMatch is specified as a bool, returns:
-    "isExactMatch,siteId,protect(record)"
-
-    If exactMatch=None, returns:
-    "siteId,protect(record)"
-    @record=(siteId,name1,name2,birthdate)
+    Formats a protected CSV entry:
+    @returns "isExactMatch,siteId,b64ProtectedEntry"
     """
-    record = protectRecord(name1, name2, bdate)
-    if exactMatch is None:
-        return '{},{}'.format(siteId, record)
-    else:
-        return '{},{},{}'.format(str(exactMatch), siteId, record)
+    return '{},{},{}'.format(str(exactMatch), siteId, 
+        protectEntry(name1, name2, bdate))
 
 def enumerateCsv(inputfile):
     """
@@ -283,7 +271,16 @@ def enumerateCsv(inputfile):
         for [siteId, name1, name2, birthdate] in reader:
             yield str(siteId), name1, name2, dt(birthdate)
 
-def dateRange(orig, dayOffsets=[1,-1], yearOffsets=[10,-10], swapMonthDay=True):
+def alternateNames(n1,n2):
+    """
+    Produces alternate names for partial matching:
+    name1-Initial + name2
+    name1-initia + name1
+    """
+    yield n1[0] + n2
+    yield n2[0] + n1
+
+def alternateDates(orig, dayOffsets=[1,-1], yearOffsets=[10,-10], swapMonthDay=True):
     """
     Iterates through partial match dates
     """
@@ -338,11 +335,12 @@ def replace(orig, year=None, month=None, day=None):
     except ValueError:
         return None
 
-def protectRecord(name1, name2, birthdate):
+def protectEntry(name1, name2, birthdate):
     """
     Protects a single record of demographic info by applying SHA512.
     """
     name = canonize(name1, name2)
+    print name
     assert(type(birthdate) is date)
     sha = SHA512.new(data=name)
     sha.update(birthdate.isoformat())
@@ -357,9 +355,10 @@ def canonize(name1, name2):
     # Strips non-alphabetical characters, converts to uppercase, 
     # removes known suffixes and prefixes.
     def stripAndUp(txt):
-        rv = scrubPrefixes(txt)
-        rv = scrubSuffixes(rv)
-        return ("".join(ch for ch in rv if ch.isalpha())).upper()
+        if txt:
+            txt = scrubPrefixes(txt)
+            txt = scrubSuffixes(txt)
+        return ("".join(ch for ch in txt if ch.isalpha())).upper()
 
     # Strip and uppercase each name, sort to alphabetical order,
     # join and return
@@ -529,7 +528,7 @@ def createPubkeyPair(basename):
     _writePemFile(privFilename, privkey)
 
 def _writePemFile(filename, key):
-    with open(filename, 'wt') as outfile:
+    with open(filename, "w") as outfile:
         outfile.write(key.exportKey(format='PEM'))
 
 def aesEncrypt(message):

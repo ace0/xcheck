@@ -28,7 +28,8 @@ class XReportCli():
     pubkey = pubkey or settings["registryPubkeyfile"]
     processCheckins(inputfile=checkin_csv, recipientKeyfile=pubkey, 
       outfile=out)
-    print "\nCheckin file '{}' processed. Created '{}'".format(checkin_csv, out)
+    print "Check-in file '{}' processed. Created encrypted file '{}'".format(
+      checkin_csv, out)
 
   def help(self):
     """
