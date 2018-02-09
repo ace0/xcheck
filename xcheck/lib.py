@@ -355,14 +355,14 @@ def canonize(name1, name2):
     # Strips non-alphabetical characters, converts to uppercase, 
     # removes known suffixes and prefixes.
     def stripAndUp(txt):
-        if txt:
-            txt = scrubPrefixes(txt)
-            txt = scrubSuffixes(txt)
+        txt = scrubPrefixes(txt)
+        txt = scrubSuffixes(txt)
         return ("".join(ch for ch in txt if ch.isalpha())).upper()
 
     # Strip and uppercase each name, sort to alphabetical order,
     # join and return
-    return "".join(sorted([stripAndUp(n) for n in [name1,name2]]))
+    names = [stripAndUp(n) for n in [name1,name2] if n is not None]
+    return "".join(sorted(names))
 
 def scrubPrefixes(name):
     """

@@ -31,6 +31,13 @@ def test_canonize():
     assert(canonize("Elfreda", "Michaud") == "ELFREDAMICHAUD")
     assert(canonize("Tamela", "Garris") == "GARRISTAMELA")
 
+def test_canonizeWithNone():
+    """
+    Tests canonize is one param is None
+    """
+    assert(canonize(None,"Bales") == "BALES")
+    assert(canonize("Idell", None) == "IDELL")
+
 def test_canonizeNonAlpha():
     """
     Tests that canonize handles non-alphanumeric characters
@@ -61,8 +68,7 @@ def test_canonizePrefixSuffix():
     assert(canonize("Mrs Alla", "Creamer") == "ALLACREAMER")
     assert(canonize("Ms. Lavinia ", "Barnhart") == "BARNHARTLAVINIA")
 
-
-def test_dateRange():
+def test_alternateDates():
     d = date(2000, 5, 20)
     expected = set([
         # year +-10
@@ -73,20 +79,20 @@ def test_dateRange():
         date(2000, 5, 19),
         date(2000, 5, 21)
     ])
-    assert(set([x for x in dateRange(d)]) == expected)
+    assert(set([x for x in alternateDates(d)]) == expected)
 
-def test_dateRangeSwap():
+def test_alternateDatesSwap():
     founded = date(1848, 6, 5)
-    actual = [x for x in dateRange(founded, yearOffsets=None, dayOffsets=None)]
+    actual = [x for x in alternateDates(founded, yearOffsets=None, dayOffsets=None)]
     assert(actual == [date(1848, 5, 6)])
 
-def test_dateRangeOutOfRange():
+def test_alternateDatesOutOfRange():
     """
-    Ensures that dateRange exclude dates that are out of range.
+    Ensures that alternateDates exclude dates that are out of range.
     """
     founded = date(1817, 01, 29)
     expected = [date(1817, 01, 24)]
-    actual = [x for x in dateRange(founded, yearOffsets=None, 
+    actual = [x for x in alternateDates(founded, yearOffsets=None, 
         dayOffsets=[-5,+5], swapMonthDay=False)]
     assert(actual == expected)
 
