@@ -236,8 +236,8 @@ def protectAndFormat(inputfile, partialMatchDates, partialMatchNames):
 
         # Run through partial match permutations
         if partialMatchNames:
-            for altName in alternateNames(n1,n2):
-                yield fmtOutput(s, altName, "", bdate, exactMatch=False)
+            for altn1,altn2 in alternateNames(n1,n2):
+                yield fmtOutput(s, altn1, altn2, bdate, exactMatch=False)
 
         if partialMatchDates:
             for altBdate in alternateDates(bdate):
@@ -274,11 +274,11 @@ def enumerateCsv(inputfile):
 def alternateNames(n1,n2):
     """
     Produces alternate names for partial matching:
-    name1-Initial + name2
-    name1-initia + name1
+    name1-initial + name2
+    name2-initial + name1
     """
-    yield n1[0] + n2
-    yield n2[0] + n1
+    yield n1[0] + n2, None
+    yield n2[0] + n1, None
 
 def alternateDates(orig, dayOffsets=[1,-1], yearOffsets=[10,-10], swapMonthDay=True):
     """
