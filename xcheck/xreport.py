@@ -1,7 +1,7 @@
 """
 Command-line interface healthcare providers to report patient check-ins
 """
-from lib import processCheckins, loadSettings
+from lib import processReports, loadSettings
 import fire
 import sys
 
@@ -10,7 +10,7 @@ class XReportCli():
     self.usage = \
     """
     Usage: xreport protect CHECKIN_CSV 
-        [--out CHECKIN_JEE]
+        [--out PROTECTED_JEE]
         [--pubkey REG_PUBLIC_PEM]
 
     Hashes and encrypts a CSV so it can be uploaded to a registry.
@@ -26,7 +26,7 @@ class XReportCli():
     settings = loadSettings()
     out = out or settings["protectedFile"]
     pubkey = pubkey or settings["registryPubkeyfile"]
-    processCheckins(inputfile=checkin_csv, recipientKeyfile=pubkey, 
+    processReports(inputfile=checkin_csv, recipientKeyfile=pubkey, 
       outfile=out)
     print "Check-in file '{}' processed. Created encrypted file '{}'".format(
       checkin_csv, out)

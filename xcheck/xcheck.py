@@ -1,5 +1,7 @@
 """
-Command-line interface healthcare providers to report patient check-ins
+Command-line interface used by a registry operator to create protected
+registry from demographic information and process encrypted uploads 
+and match them against the registry.
 """
 from lib import (loadSettings, createPubkeyPair, processJee, processRegistry,
   printLines)
@@ -16,7 +18,7 @@ class XCheckCli():
       [--output PROTECTED_REGISTRY] 
     Process a registry with demographic information in CSV format. Hash each entry and write to a new file.
 
-    xcheck process CHECKIN_JEE 
+    xcheck process PROTECTED_JEE 
         [--registry PROTECTED_REGISTRY]
         [--privkey PATH_PRIVKEY_PEM]
     Decrypt and process an encrypted/hashed JEE file against a registry in CSV format. Matches are printed to STDOUT. 
@@ -54,7 +56,7 @@ class XCheckCli():
     processRegistry(registryCsvfile=registry_csv, registryOutfile=output)
     print "Created protected registry: {}".format(output)
 
-  def process(self, checkin_jee, registry=None, privkey=None,):
+  def process(self, protected_jee, registry=None, privkey=None,):
     """
     Process an uploade JEE file against a registry.
     """
@@ -62,7 +64,7 @@ class XCheckCli():
     registry = registry or settings["registryFile"]
     privkey = privkey or settings["registryPrivkeyfile"]
 
-    err = processJee(jeeFile=checkin_jee, protectedRegistryFile=registry, 
+    err = processJee(jeeFile=protected_jee, protectedRegistryFile=registry, 
       privkeyFile=privkey)
 
     if err is not None:

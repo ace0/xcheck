@@ -75,21 +75,21 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
         jeeText = f.read()
 
     # Decrypt and verify the JEE contents
-    err, checkinTxt = publicKeyDecrypt(privkeyFile, jeeText)
+    err, reportingTxt = publicKeyDecrypt(privkeyFile, jeeText)
     if err is not None:
         return err
 
-    checkinCount, matchFound = match(checkinTxt, exact, partial)
+    recordCount, matchFound = match(reportingTxt, exact, partial)
 
     print "Processed {} uploaded records against {} registry entries".format(
-        checkinCount, len(exact))
+        recordCount, len(exact))
     if matchFound == False:
         print "No matches found"
 
-def match(checkinTxt, exactMatchTable, partialMatchTable):
+def match(reportingTxt, exactMatchTable, partialMatchTable):
     """
-    Matches check-in entries against exact and partial dictionaries from the 
-    protected registry.
+    Matches reported protected entries against exact and partial 
+    dictionaries from the registry.
     """
     def printMatch(matchType, entry, reportingSite, registrySite):
         printLines("Found {} match: {}".format(matchType, entry),
@@ -98,10 +98,10 @@ def match(checkinTxt, exactMatchTable, partialMatchTable):
             "")
 
     # Process the registry entries against the protected entries
-    checkinCount = 0
+    recordCount = 0
     anyMatchFound = False
-    for group in groupCheckins(parseCheckins(checkinTxt)):
-        checkinCount += len(group)
+    for group in groupReportedRecords(parseReportedRecords(reportingTxt)):
+        recordCount += len(group)
         for reportingSite,entry in group:
             # Check for a match in one of the registry dictionaries
             def checkMatch(registry, matchType):
@@ -120,19 +120,19 @@ def match(checkinTxt, exactMatchTable, partialMatchTable):
 
             # Then a partial match
             if checkMatch(partialMatchTable, "partial"):
+                # Any match means stop process this group of entries
                 break
 
-    return (checkinCount, anyMatchFound)
+    return (recordCount, anyMatchFound)
 
-
-def groupCheckins(checkinIterator):
+def groupReportedRecords(recordIterator):
     """
     Groups protectedEntry into lists so that the first item is always an
     exact match entry followed by any partial match entries.
     yields: [(siteId,protectedEntry), (siteId,protectedEntry),...] 
     """
     group = []
-    for isExact,siteId,entry in checkinIterator:
+    for isExact,siteId,entry in recordIterator:
         # Exact match marks the start of a new group. Yield any previous group
         # and reset
         if isExact:
@@ -142,26 +142,26 @@ def groupCheckins(checkinIterator):
     # Yield the final group
     yield group
 
-def parseCheckins(checkinTxt):
+def parseReportedRecords(reportingTxt):
     """
-    Parses check-in text into rows and fields. Prints any parsing errors
+    Parses reported text into rows and fields. Prints any parsing errors
     and discard these records.
     yields: isExactMatch,siteId,protectedEntry
     """
     rowCount = 0
-    for row in checkinTxt.split("\n"):
+    for row in reportingTxt.split("\n"):
         rowCount += 1
-        err,isExact,checkinSiteId,protectedEntry = parseRow(row)
+        err,isExact,reportingSiteId,protectedEntry = parseRow(row)
 
         # Report errors
         if err is not None:
-            printLines("Found a problem in check-in entry number {}: {}".format(
+            printLines("Found a problem in line number {}: {}".format(
                 rowCount, err), 
                 "  Original record is: {}".format(row),
                 "  Skipping this record", 
                 "")
             continue
-        yield isExact,checkinSiteId,protectedEntry
+        yield isExact,reportingSiteId,protectedEntry
 
 def readProtectedRegistry(protectedRegistryFile):
     """
@@ -241,7 +241,7 @@ def processRegistry(registryCsvfile, registryOutfile):
             f.write(entry)
             f.write("\n")
 
-def processCheckins(inputfile, outfile, recipientKeyfile):
+def processReports(inputfile, outfile, recipientKeyfile):
     """
     Process (and validate) and file of demographic info and create an
     encrypted output file that contains protected records and is encrypted
@@ -376,7 +376,6 @@ def protectEntry(name1, name2, birthdate):
     Protects a single record of demographic info by applying SHA512.
     """
     name = canonize(name1, name2)
-    print name
     assert(type(birthdate) is date)
     sha = SHA512.new(data=name)
     sha.update(birthdate.isoformat())
