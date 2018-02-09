@@ -86,7 +86,7 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
     if matchFound == False:
         print "No matches found"
 
-def match(checkinTxt, exactMatch, partialMatch):
+def match(checkinTxt, exactMatchTable, partialMatchTable):
     """
     Matches check-in entries against exact and partial dictionaries from the 
     protected registry.
@@ -98,34 +98,70 @@ def match(checkinTxt, exactMatch, partialMatch):
             "")
 
     # Process the registry entries against the protected entries
-    matchFound = False
     checkinCount = 0
+    anyMatchFound = False
+    for group in groupCheckins(parseCheckins(checkinTxt)):
+        checkinCount += len(group)
+        for reportingSite,entry in group:
+            # Check for a match in one of the registry dictionaries
+            def checkMatch(registry, matchType):
+                if entry not in registry:
+                    return False
+                printMatch(matchType, entry, 
+                    reportingSite=reportingSite, 
+                    registrySite=registry[entry])
+                anyMatchFound = True
+                return True
 
+            # First check for an exact match
+            if checkMatch(exactMatchTable, "exact"):
+                # Any match means stop process this group of entries
+                break
+
+            # Then a partial match
+            if checkMatch(partialMatchTable, "partial"):
+                break
+
+    return (checkinCount, anyMatchFound)
+
+
+def groupCheckins(checkinIterator):
+    """
+    Groups protectedEntry into lists so that the first item is always an
+    exact match entry followed by any partial match entries.
+    yields: [(siteId,protectedEntry), (siteId,protectedEntry),...] 
+    """
+    group = []
+    for isExact,siteId,entry in checkinIterator:
+        # Exact match marks the start of a new group. Yield any previous group
+        # and reset
+        if isExact:
+            yield group
+            group = []
+        group.append((siteId,entry))
+    # Yield the final group
+    yield group
+
+def parseCheckins(checkinTxt):
+    """
+    Parses check-in text into rows and fields. Prints any parsing errors
+    and discard these records.
+    yields: isExactMatch,siteId,protectedEntry
+    """
+    rowCount = 0
     for row in checkinTxt.split("\n"):
-        checkinCount += 1
+        rowCount += 1
         err,isExact,checkinSiteId,protectedEntry = parseRow(row)
 
+        # Report errors
         if err is not None:
             printLines("Found a problem in check-in entry number {}: {}".format(
-                checkinCount, err), 
+                rowCount, err), 
                 "  Original record is: {}".format(row),
                 "  Skipping this record", 
                 "")
             continue
-
-        # First check for an exact match
-        if protectedEntry in exactMatch:
-            printMatch("exact", protectedEntry, reportingSite=checkinSiteId, 
-                registrySite=exactMatch[protectedEntry])
-            matchFound = True
-
-        # Then a partial match
-        elif protectedEntry in partialMatch:
-            printMatch("partial", protectedEntry, reportingSite=checkinSiteId, 
-                registrySite=partialMatch[protectedEntry])
-            matchFound = True
-
-    return (checkinCount, matchFound)
+        yield isExact,checkinSiteId,protectedEntry
 
 def readProtectedRegistry(protectedRegistryFile):
     """
