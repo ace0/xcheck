@@ -40,6 +40,8 @@ def loadSettings(settingsfile=defaultSettingsFile):
     # read from the file.
     settings = defaultSettings.copy()
     settings.update(settingsFromFile)
+
+
     return settings
 
 def readSettingsFile(settingsfile):
@@ -49,6 +51,9 @@ def readSettingsFile(settingsfile):
     settings = {}
     with open(settingsfile, 'r') as f:
         settings = json.loads(f.read())
+    for k,v in settings.items():
+        settings[k] = str(v)
+
     return settings
 
 def writeDefaultSettings(settingsfile=defaultSettingsFile):
@@ -81,7 +86,7 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
 
     recordCount, matchFound = match(reportingTxt, exact, partial)
 
-    print "Processed {} uploaded records against {} registry entries1".format(
+    print "Processed {} uploaded records against {} registry entries".format(
         recordCount, len(exact))
     if matchFound == False:
         print "No matches found"
@@ -270,8 +275,11 @@ def protectAndFormat(inputfile, partialMatchDates, partialMatchNames):
     """
     # Process validates entries read from the input file
     for (s,n1,n2,bdate) in enumerateCsv(inputfile):
-        # Yield the complete match record
+        n1,n2 = scrub(n1,n2)
+
+        # Yield the exact match record
         yield fmtOutput(s, n1, n2, bdate, exactMatch=True)
+        yield fmtOutput(s, n2, n1, bdate, exactMatch=True)
 
         # Run through partial match permutations
         if partialMatchNames:
@@ -377,9 +385,9 @@ def replace(orig, year=None, month=None, day=None):
 def protectEntry(name1, name2, birthdate, debug=False):
     """
     Protects a single record of demographic info by applying SHA512.
-    """
-    name = canonize(name1, name2)
+    """    
     assert(type(birthdate) is date)
+    name = "".join([x for x in [name1,name2] if x is not None])
     sha = SHA512.new(data=name)
     sha.update(birthdate.isoformat())
 
@@ -388,7 +396,7 @@ def protectEntry(name1, name2, birthdate, debug=False):
 
     return b64enc(sha.digest() )
 
-def canonize(name1, name2):
+def scrub(name1, name2):
     """
     Remove non-ASCII, non-alphanumeric characters and combine names
     in alphabetical ordering to ensure matching in the face of certain classes
@@ -403,8 +411,7 @@ def canonize(name1, name2):
 
     # Strip and uppercase each name, sort to alphabetical order,
     # join and return
-    names = [stripAndUp(n) for n in [name1,name2] if n is not None]
-    return "".join(sorted(names))
+    return [stripAndUp(n) for n in [name1,name2] if n is not None]
 
 def scrubPrefixes(name):
     """
