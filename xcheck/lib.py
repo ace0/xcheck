@@ -81,7 +81,7 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
 
     recordCount, matchFound = match(reportingTxt, exact, partial)
 
-    print "Processed {} uploaded records against {} registry entries".format(
+    print "Processed {} uploaded records against {} registry entries1".format(
         recordCount, len(exact))
     if matchFound == False:
         print "No matches found"
@@ -371,7 +371,7 @@ def replace(orig, year=None, month=None, day=None):
     except ValueError:
         return None
 
-def protectEntry(name1, name2, birthdate):
+def protectEntry(name1, name2, birthdate, debug=False):
     """
     Protects a single record of demographic info by applying SHA512.
     """
@@ -379,6 +379,10 @@ def protectEntry(name1, name2, birthdate):
     assert(type(birthdate) is date)
     sha = SHA512.new(data=name)
     sha.update(birthdate.isoformat())
+
+    if debug:
+        print name + birthdate.isoformat()
+
     return b64enc(sha.digest() )
 
 def canonize(name1, name2):
@@ -490,7 +494,7 @@ def createJee(pubkey, encMsg):
     { 
         "typ": "jee",
         "alg": "RSA-PKCS1-OAEP-AES128-GCM",
-        "pk_fp_alg": "SHA256",
+        "pk_fp_alg": "PEM-SHA256",
         "pk_fp": "base64=",
         "enc_data": "base64="
     }
