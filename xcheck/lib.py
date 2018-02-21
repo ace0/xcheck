@@ -246,7 +246,7 @@ def processRegistry(registryCsvfile, registryOutfile):
             f.write(entry)
             f.write("\n")
 
-def processReports(inputfile, outfile, recipientKeyfile, debug=False):
+def processReports(inputfile, outfile, recipientKeyfile, debug=True):
     """
     Process (and validate) and file of demographic info and create an
     encrypted output file that contains protected records and is encrypted
@@ -324,10 +324,10 @@ def alternateNames(n1,n2):
     name1-initial + name2
     name2-initial + name1
     """
-    yield n1[0] + n2, None
-    yield n2[0] + n1, None
+    yield n1[:4] + n2, None
+    yield n2[:4] + n1, None
 
-def alternateDates(orig, dayOffsets=[1,-1], yearOffsets=[10,-10], swapMonthDay=True):
+def alternateDates(orig, dayOffsets=[1,-1], yearOffsets=None, swapMonthDay=True):
     """
     Iterates through partial match dates
     """
@@ -382,7 +382,7 @@ def replace(orig, year=None, month=None, day=None):
     except ValueError:
         return None
 
-def protectEntry(name1, name2, birthdate, debug=False):
+def protectEntry(name1, name2, birthdate, debug=True):
     """
     Protects a single record of demographic info by applying SHA512.
     """    
