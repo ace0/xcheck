@@ -33,7 +33,7 @@ python xcheck.py hash samples/registry.csv
 python xreport.py protect samples/checkin.csv --pubkey samples/testkey-public.pem
 ```
 
-### Compare the encrypted test file against a demo registry
+### Decrypt site file, match it against the hashed registry, and report exact or partial matches
 ```
 python xcheck.py process protected.jee --privkey samples/testkey-private.pem
 ```
