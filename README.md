@@ -54,3 +54,27 @@ Found partial match: VgvEnpKBmM0wiDTiKVYBQU9fuvXK3oQqOphOdYbLWLd8uc4fO7SbQ23BsZF
 
 Processed 4 uploaded records against 10 registry entries
 ```
+
+## To create your own registry
+Run the new keys command:
+```
+python xcheck.py newkeys
+```
+
+Expected output:
+```
+Creating key pair -- this may take several seconds
+Created new key pair: registry-public.pem, registry-private.pem
+To put into the default locations, run:
+
+mv registry-public.pem settings/registry-public.pem
+mv registry-private.pem ~/.ssh/registry-private.pem
+```
+
+On MacOS/Linux, run the move command:
+```
+mv registry-public.pem settings/registry-public.pem
+mv registry-private.pem ~/.ssh/registry-private.pem
+```
+
+On Windows, drag-and-drop files into these directories.
