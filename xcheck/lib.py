@@ -241,7 +241,7 @@ def processRegistry(registryCsvfile, registryOutfile):
             f.write(entry)
             f.write("\n")
 
-def processReports(inputfile, outfile, recipientKeyfile):
+def processReports(inputfile, outfile, recipientKeyfile, debug=False):
     """
     Process (and validate) and file of demographic info and create an
     encrypted output file that contains protected records and is encrypted
@@ -250,6 +250,9 @@ def processReports(inputfile, outfile, recipientKeyfile):
     # Generate an entire protected record CSV in-memory
     txt = "\n".join([x for x in protectAndFormat(inputfile, 
         partialMatchDates=False, partialMatchNames=True)])
+
+    if debug:
+        print txt
 
     # Encrypt the contents and write it to a file
     with open(outfile, "w") as f:
