@@ -3,6 +3,6 @@
  	"registryPubkeyfile": "settings/registry-public.pem", 
   "protectedFile": "./protected.jee",
   "registryFile": "settings/protected-registry",
-  "errorFolder": "errors",
-  "errorLogs": "settings/errorLog"
+  "errorDir": "errors",
+  "errorLog": "settings/errorLog"
 }

@@ -7,7 +7,8 @@ from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256, SHA512
 from base64 import urlsafe_b64encode as b64enc, urlsafe_b64decode as b64dec
 from datetime import datetime, date
-import binascii, csv, json
+from shutil import copyfile
+import binascii, csv, json, os
 
 ###
 #
@@ -20,8 +21,8 @@ defaultSettings = {
     "registryPubkeyfile": "settings/registry-public.pem", 
     "protectedFile": "./protected.jee",
     "registryFile": "settings/protected-registry",
-    "errorFolder": "errors",
-    "errorLogs": "settings/errorLog"
+    "errorDir": "errors",
+    "errorLog": "settings/errorLog"
     }
 
 def loadSettings(settingsfile=defaultSettingsFile):
@@ -66,6 +67,27 @@ def writeDefaultSettings(settingsfile=defaultSettingsFile):
 def printSettingsError(settingsfile, e):
     print "Warning: there was problem loading settings file '{}': {}\n"\
         "Using default settings instead.".format(settingsfile, e)
+
+###
+#
+# Log and segregate problematic input files
+def noteError(srcfile, errMsg, cmd, settings, terminate):
+    _, filename = os.path.split(srcfile)
+
+    # Log the error
+    with open(settings["errorLog"], 'a') as log:
+        log.write("{}\tERROR\tError occurred while processing source file "\
+            "'{}' with command '{}': {}".format(
+                datetime.now(), 
+                filename, 
+                errMsg,
+                cmd)
+            )
+    # Put a copy of the problematic file in the errorfile location
+    copyfile(srcfile, os.path.join(settings["errorDir"], filename))
+    print str(errMsg)
+    if terminate:
+        exit(1)
 
 ###
 #
