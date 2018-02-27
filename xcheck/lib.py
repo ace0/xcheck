@@ -16,29 +16,21 @@ import binascii, csv, json, os
 
 # Constants
 defaultSettingsFile = 'settings/settings.json'
-defaultSettings = {
-    # Registry operators on Windows: create a folder to store the registry
-    # private key and update the registryPrivkeyfile entry.
-    #
-    # Example:
-    # "registryPrivkeyfile": "C:\\Users\\User\\privkeys", 
-
-    # Unix users can use the .ssh directory to store private keys
-    "registryPrivkeyfile": "~/.ssh/registry-private.pem", 
-    "registryPubkeyfile": "settings/registry-public.pem", 
-    "protectedFile": "./protected.jee",
-    "registryFile": "settings/protected-registry.csv",
-    "errorDir": "errors",
-    "errorLog": "settings/errorLog"
-    }
+# defaultSettings = {
+#     "registryPrivkeyfile": "~/.ssh/registry-private.pem", 
+#     "registryPubkeyfile": "settings/registry-public.pem", 
+#     "protectedFile": "./protected.jee",
+#     "registryFile": "settings/protected-registry.csv",
+#     "errorDir": "errors",
+#     "errorLog": "settings/errorLog"
+#     }
 
 def loadSettings(settingsfile=defaultSettingsFile):
     """
     Loads the current settings for this application.
     """
-    settingsFromFile = {}
     try:
-        settingsFromFile = readSettingsFile(settingsfile)
+        settings = readSettingsFile(settingsfile)
     # Catch file IO errors
     except IOError as e:
         printSettingsError(settingsfile, e)
@@ -48,14 +40,13 @@ def loadSettings(settingsfile=defaultSettingsFile):
 
     # Start with the default settings and overwrite any settings
     # read from the file.
-    settings = defaultSettings.copy()
-    settings.update(settingsFromFile)
+    # settings = defaultSettings.copy()
+    # settings.update(settingsFromFile)
 
     # Expand all paths
-    for k,path in defaultSettings.iteritems():
+    for k,path in settings.iteritems():
         path = os.path.expanduser(os.path.expandvars(path))
         settings[k] = path
-
     return settings
 
 def readSettingsFile(settingsfile):
@@ -78,8 +69,9 @@ def writeDefaultSettings(settingsfile=defaultSettingsFile):
         f.write(json.dumps(defaultSettings))
 
 def printSettingsError(settingsfile, e):
-    print "Warning: there was problem loading settings file '{}': {}\n"\
-        "Using default settings instead.".format(settingsfile, e)
+    print "Error: there was problem loading settings file '{}': "\
+        "{}\n".format(settingsfile, e)
+    exit(1)
 
 ###
 #
