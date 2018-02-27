@@ -56,16 +56,32 @@ Processed 4 uploaded records against 10 registry entries
 ```
 
 ## To create your own registry
-- Clone this registry (use the clone button on GitHub) to make your own copy.
-- Clone that registry unto your desktop computer.
-- Create new keys
+High-level instructions (details below):
+- Clone this registry on GitHub to create your own master copy (use the clone button on GitHub)
+- Clone the new GitHub registry unto your local computer
+- (On Windows) Update the local configuration in `settings/settings.json` ()
+- Create new registry keys (public and private keys to protect uploads)
+- Configure the new registry, commit, changes and publish to GitHub
 
-Run the new keys command:
+Some detailed instructions follow.
+
+To update the local configuration on Windows, open the file `settings/json` and change:
+```
+"registryPrivkeyfile": "~/.ssh/registry-private.pem"
+```
+to a path on the folder on the current computer. For example, create a new 
+folder and change the line to:
+```
+"registryPrivkeyfile": "C:\\Users\User\privkey\registry-private.pem"
+```
+
+
+Create new registry keys on a local computer with the `newkeys` command:
 ```
 python xcheck.py newkeys
 ```
 
-Expected output:
+Expected output on Linux/MacOS:
 ```
 Creating key pair -- this may take several seconds
 Created new key pair: registry-public.pem, registry-private.pem
@@ -75,7 +91,18 @@ mv registry-public.pem settings/registry-public.pem
 mv registry-private.pem ~/.ssh/registry-private.pem
 ```
 
-On Windows, drag-and-drop files into the directories above. The public key will be in the `settings/` directory and will become part of the public repository. The private key is outside the repository so that it doesn't become public.
+Expected output on Windows:
+```
+Creating key pair -- this may take several seconds
+Created new key pair: registry-public.pem, registry-private.pem
+To put into the default locations, run:
+
+move registry-public.pem settings/registry-public.pem
+move registry-private.pem C:\Users\User/privkeys/registry-private.pem
+```
+
+On Windows, run the commands above or drag-and-drop files into the directories above. 
+The public key will be in the `settings/` directory and will become part of the public repository. The private key is outside the repository so that it doesn't become public.
 
 Commit these changes, push them to GitHub, and check GitHub to make sure the public key is there.
 
