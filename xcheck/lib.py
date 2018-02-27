@@ -16,10 +16,12 @@ import binascii, csv, json
 # Constants
 defaultSettingsFile = 'settings/settings.json'
 defaultSettings = {
+    "registryPrivkeyfile": "~/.ssh/registry-private.pem", 
+    "registryPubkeyfile": "settings/registry-public.pem", 
     "protectedFile": "./protected.jee",
-    "registryPubkeyfile": "settings/registry-public.pem",
-    "registryPrivkeyfile": "~/.ssh/registry-private.pem",
-    "registryFile": "settings/protected-registry"
+    "registryFile": "settings/protected-registry",
+    "errorFolder": "errors",
+    "errorLogs": "settings/errorLog"
     }
 
 def loadSettings(settingsfile=defaultSettingsFile):
@@ -40,8 +42,6 @@ def loadSettings(settingsfile=defaultSettingsFile):
     # read from the file.
     settings = defaultSettings.copy()
     settings.update(settingsFromFile)
-
-
     return settings
 
 def readSettingsFile(settingsfile):
@@ -64,8 +64,8 @@ def writeDefaultSettings(settingsfile=defaultSettingsFile):
         f.write(json.dumps(defaultSettings))
 
 def printSettingsError(settingsfile, e):
-    print "Warning: there was problem loading settings file '{}': {}\nUsing default settings instead.".format(
-        settingsfile, e)
+    print "Warning: there was problem loading settings file '{}': {}\n"\
+        "Using default settings instead.".format(settingsfile, e)
 
 ###
 #
@@ -275,11 +275,12 @@ def protectAndFormat(inputfile, partialMatchDates, partialMatchNames):
     """
     # Process validates entries read from the input file
     for (s,n1,n2,bdate) in enumerateCsv(inputfile):
-        n1,n2 = scrub(n1,n2)
+        n1,n2 = normalize(n1,n2)
 
-        # Yield the exact match record
-        yield fmtOutput(s, n1, n2, bdate, exactMatch=True)
-        yield fmtOutput(s, n2, n1, bdate, exactMatch=True)
+        # Yield the exact match record with names in either
+        # direction.
+        yield fmtOutput(s, [n1, n2], bdate, exactMatch=True)
+        yield fmtOutput(s, [n2, n1], bdate, exactMatch=True)
 
         # Run through partial match permutations
         if partialMatchNames:
@@ -327,7 +328,8 @@ def alternateNames(n1,n2):
     yield n1[:4] + n2, None
     yield n2[:4] + n1, None
 
-def alternateDates(orig, dayOffsets=[1,-1], yearOffsets=None, swapMonthDay=True):
+def alternateDates(orig, dayOffsets=[1,-1], yearOffsets=None, 
+    swapMonthDay=True):
     """
     Iterates through partial match dates
     """
@@ -396,11 +398,10 @@ def protectEntry(name1, name2, birthdate, debug=True):
 
     return b64enc(sha.digest() )
 
-def scrub(name1, name2):
+def normalize(names):
     """
-    Remove non-ASCII, non-alphanumeric characters and combine names
-    in alphabetical ordering to ensure matching in the face of certain classes
-    of typos.
+    Remove non-ASCII, non-alphanumeric characters, scrub known prefixes and 
+    suffixes, returns all names in uppercase.
     """
     # Strips non-alphabetical characters, converts to uppercase, 
     # removes known suffixes and prefixes.
@@ -409,9 +410,9 @@ def scrub(name1, name2):
         txt = scrubSuffixes(txt)
         return ("".join(ch for ch in txt if ch.isalpha())).upper()
 
-    # Strip and uppercase each name, sort to alphabetical order,
-    # join and return
-    return [stripAndUp(n) for n in [name1,name2] if n is not None]
+    # Normalize each name and return as a list
+    # Discard any None values
+    return [stripAndUp(n) for n in names if n is not None]
 
 def scrubPrefixes(name):
     """
@@ -446,7 +447,8 @@ symmetricKeySizeBytes = 128/8
 encMsgKeyBytes = 384
 rsaKeySize = 3072
 
-publicKeyDecryptError = "This is an rsa PUBLIC key, but an rsa PRIVATE key is required for decryption."
+publicKeyDecryptError = "This is an rsa PUBLIC key, but an rsa PRIVATE key "\
+    "is required for decryption."
 decryptionFailedError = "Decryption failed. Encrypted message is not valid."
 
 def publicKeyEncrypt(recipientKeyfile, message):

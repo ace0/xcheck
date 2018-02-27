@@ -16,57 +16,51 @@ def test_scrubSuffixes():
     actual = [scrubSuffixes(x) for x in names]
     assert(expected == actual)
 
-def test_canonize():
+def test_normalize():
     """
     Simple known-answer tests
     """
-    assert(canonize("Avery","Bales") == "AVERYBALES")
-    assert(canonize("Idell", "Leggett") == "IDELLLEGGETT")
-    assert(canonize("Farah", "Sharkey") == "FARAHSHARKEY")
-    assert(canonize("Alla", "Creamer") == "ALLACREAMER")
-    assert(canonize("Lavinia", "Barnhart") == "BARNHARTLAVINIA")
-    assert(canonize("Florance", "Arevalo") == "AREVALOFLORANCE")
-    assert(canonize("Trinidad", "Langley") == "LANGLEYTRINIDAD")
-    assert(canonize("Romona", "Daly") == "DALYROMONA")
-    assert(canonize("Elfreda", "Michaud") == "ELFREDAMICHAUD")
-    assert(canonize("Tamela", "Garris") == "GARRISTAMELA")
+    assert(normalize(["Avery","Bales"]) == ["AVERY", "BALES"])
+    assert(normalize(["Idell", "Leggett"]) == ["IDELL", "LEGGETT"])
+    assert(normalize(["Farah", "Sharkey"]) == ["FARAH", "SHARKEY"])
+    assert(normalize(["Alla", "Creamer"]) == ["ALLA", "CREAMER"])
 
-def test_canonizeWithNone():
+def test_normalizeWithNone():
     """
-    Tests canonize is one param is None
+    Tests normalize is one param is None
     """
-    assert(canonize(None,"Bales") == "BALES")
-    assert(canonize("Idell", None) == "IDELL")
+    assert(normalize([None,"Bales"]) == ["BALES"])
+    assert(normalize(["Idell", None]) == ["IDELL"])
 
-def test_canonizeNonAlpha():
+def test_normalizeNonAlpha():
     """
-    Tests that canonize handles non-alphanumeric characters
+    Tests that normalize handles non-alphanumeric characters
     """
-    assert(canonize("Ave3ry","Bales1") == "AVERYBALES")
-    assert(canonize("Idell", "Legg`ett") == "IDELLLEGGETT")
-    assert(canonize("2Farah", "Sharkey") == "FARAHSHARKEY")
-    assert(canonize("Alla", "Creamer4") == "ALLACREAMER")
-    assert(canonize("Lavinia\xe2", "Barnhart") == "BARNHARTLAVINIA")
+    assert(normalize(["Ave3ry","Bales1"]) == ["AVERY","BALES"])
+    assert(normalize(["Idell", "Legg`ett"]) == ["IDELL","LEGGETT"])
+    assert(normalize(["2Farah", "Sharkey"]) == ["FARAH","SHARKEY"])
+    assert(normalize(["Alla", "Creamer4"]) == ["ALLA","CREAMER"])
+    assert(normalize(["Lavinia\xe2", "Barnhart"]) == ["LAVINIA","BARNHART"])
 
-def test_canonizeSpaces():
+def test_normalizeSpaces():
     """
-    Tests that canonize removes whitespace: spaces, tabs, newlines
+    Tests that normalize removes whitespace: spaces, tabs, newlines
     """
-    assert(canonize("Florance", "  Arevalo") == "AREVALOFLORANCE")
-    assert(canonize("Trinidad   ", "Langley\n") == "LANGLEYTRINIDAD")
-    assert(canonize("Ro mona", "Da ly") == "DALYROMONA")
-    assert(canonize("  El freda ", "    Micha ud     ") == "ELFREDAMICHAUD")
-    assert(canonize("  Tamela", "Garris") == "GARRISTAMELA")
+    assert(normalize(["Florance", "  Arevalo"]) == ["FLORANCE","AREVALO"])
+    assert(normalize(["Trinidad   ", "Langley\n"]) == ["TRINIDAD","LANGLEY"])
+    assert(normalize(["Ro mona", "Da ly"]) == ["ROMONA","DALY"])
+    assert(normalize(["  El freda ", "    Micha ud     "]) == ["ELFREDA","MICHAUD"])
+    assert(normalize(["  Tamela", "Garris"]) == ["TAMELA","GARRIS"])
 
-def test_canonizePrefixSuffix():
+def test_normalizePrefixSuffix():
     """
-    Tests that canonize always matches reversed names
+    Tests that normalize always matches reversed names
     """
-    assert(canonize("Dr  Avery","Bales") == "AVERYBALES")
-    assert(canonize(" Idell", " Leggett III ") == "IDELLLEGGETT")
-    assert(canonize("Farah", "Sharkey Jr ") == "FARAHSHARKEY")
-    assert(canonize("Mrs Alla", "Creamer") == "ALLACREAMER")
-    assert(canonize("Ms. Lavinia ", "Barnhart") == "BARNHARTLAVINIA")
+    assert(normalize(["Dr  Avery","Bales"]) == ["AVERY","BALES"])
+    assert(normalize([" Idell", " Leggett III "]) == ["IDELL","LEGGETT"])
+    assert(normalize(["Farah", "Sharkey Jr "]) == ["FARAH","SHARKEY"])
+    assert(normalize(["Mrs Alla", "Creamer"]) == ["ALLA","CREAMER"])
+    assert(normalize(["Ms. Lavinia ", "Barnhart"]) == ["LAVINIA","BARNHART"])
 
 def test_alternateDates():
     d = date(2000, 5, 20)
@@ -79,7 +73,11 @@ def test_alternateDates():
         date(2000, 5, 19),
         date(2000, 5, 21)
     ])
-    assert(set([x for x in alternateDates(d)]) == expected)
+    actual = alternateDates(d, 
+        dayOffsets=[1,-1], 
+        yearOffsets=[10,-10],
+        swapMonthDay=True)
+    assert(set(actual) == expected)
 
 def test_alternateDatesSwap():
     founded = date(1848, 6, 5)
