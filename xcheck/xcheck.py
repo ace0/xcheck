@@ -4,7 +4,7 @@ registry from demographic information and process encrypted uploads
 and match them against the registry.
 """
 from lib import (loadSettings, createPubkeyPair, processJee, processRegistry,
-  printLines)
+  printLines, noteError)
 import fire
 import platform, sys
 
@@ -64,11 +64,15 @@ class XCheckCli():
     registry = registry or settings["registryFile"]
     privkey = privkey or settings["registryPrivkeyfile"]
 
-    err = processJee(jeeFile=protected_jee, protectedRegistryFile=registry, 
-      privkeyFile=privkey)
+    try:
+      err = processJee(jeeFile=protected_jee, protectedRegistryFile=registry, 
+        privkeyFile=privkey)
+    except Exception as e:
+      err = str(e)
 
     if err is not None:
-        print "Error: {}".format(err)
+      noteError(srcfile=protected_jee, errMsg=err, settings=settings, 
+        cmd="xcheck process", terminate=True)
 
 def moveCmd():
   """
@@ -89,7 +93,7 @@ if __name__ == '__main__':
   if ("-h" in sys.argv or "--help" in sys.argv or "-help" in sys.argv or
     len(sys.argv) == 1):
     XCheckCli().help()
-    sys.exit(1)
+    exit(1)
 
   # Hand-off to fire for argument processing
   fire.Fire(XCheckCli())

@@ -77,7 +77,7 @@ def noteError(srcfile, errMsg, cmd, settings, terminate):
     # Log the error
     with open(settings["errorLog"], 'a') as log:
         log.write("{}\tERROR\tError occurred while processing source file "\
-            "'{}' with command '{}': {}".format(
+            "'{}' with command '{}': {}\n".format(
                 datetime.now(), 
                 filename, 
                 errMsg,
