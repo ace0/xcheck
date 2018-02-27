@@ -59,7 +59,7 @@ Processed 4 uploaded records against 10 registry entries
 High-level instructions (details below):
 - Clone this registry on GitHub to create your own master copy (use the clone button on GitHub)
 - Clone the new GitHub registry unto your local computer
-- (On Windows) Update the local configuration in `settings/settings.json` ()
+- (On Windows) Update the local configuration in `settings/settings.json` 
 - Create new registry keys (public and private keys to protect uploads)
 - Configure the new registry, commit, changes and publish to GitHub
 

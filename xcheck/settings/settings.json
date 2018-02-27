@@ -1,4 +1,4 @@
-{
+{ 
 	"registryPrivkeyfile": "~/.ssh/registry-private.pem", 
  	"registryPubkeyfile": "settings/registry-public.pem", 
   "protectedFile": "./protected.jee",
