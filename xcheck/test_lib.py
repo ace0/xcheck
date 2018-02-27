@@ -2,7 +2,18 @@
 Unit tests. Run with `pytest`.
 """
 from lib import *
-import pytest
+import pytest, os
+
+def test_settings_paths():
+    """
+    Test whether each of the settings paths resolve to locations that exist.
+    """
+    settings = loadSettings()
+    for k,v in settings.iteritems():
+        path, _ = os.path.split(v)
+        print "Testing setting {} with base path '{}'".format(k, path)
+        if path:
+            assert(os.path.exists(path))
 
 def test_scrubPrefixes():
     names = ["Mr. Winnie", "Dr Crypto", "Mr Du-Pont", "Mrs De Marisole", "Paul"]

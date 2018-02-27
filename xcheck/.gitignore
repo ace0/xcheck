@@ -7,3 +7,4 @@ protected.jee
 settings/registry.csv
 settings/protected-registry
 .DS_Store
+settings/errorLog

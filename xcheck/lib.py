@@ -17,10 +17,17 @@ import binascii, csv, json, os
 # Constants
 defaultSettingsFile = 'settings/settings.json'
 defaultSettings = {
+    # Registry operators on Windows: create a folder to store the registry
+    # private key and update the registryPrivkeyfile entry.
+    #
+    # Example:
+    # "registryPrivkeyfile": "C:\\Users\\User\\privkeys", 
+
+    # Unix users can use the .ssh directory to store private keys
     "registryPrivkeyfile": "~/.ssh/registry-private.pem", 
     "registryPubkeyfile": "settings/registry-public.pem", 
     "protectedFile": "./protected.jee",
-    "registryFile": "settings/protected-registry",
+    "registryFile": "settings/protected-registry.csv",
     "errorDir": "errors",
     "errorLog": "settings/errorLog"
     }
@@ -43,6 +50,12 @@ def loadSettings(settingsfile=defaultSettingsFile):
     # read from the file.
     settings = defaultSettings.copy()
     settings.update(settingsFromFile)
+
+    # Expand all paths
+    for k,path in defaultSettings.iteritems():
+        path = os.path.expanduser(os.path.expandvars(path))
+        settings[k] = path
+
     return settings
 
 def readSettingsFile(settingsfile):
@@ -268,7 +281,7 @@ def processRegistry(registryCsvfile, registryOutfile):
             f.write(entry)
             f.write("\n")
 
-def processReports(inputfile, outfile, recipientKeyfile, debug=True):
+def processReports(inputfile, outfile, recipientKeyfile, debug=False):
     """
     Process (and validate) and file of demographic info and create an
     encrypted output file that contains protected records and is encrypted
@@ -297,12 +310,12 @@ def protectAndFormat(inputfile, partialMatchDates, partialMatchNames):
     """
     # Process validates entries read from the input file
     for (s,n1,n2,bdate) in enumerateCsv(inputfile):
-        n1,n2 = normalize(n1,n2)
+        n1,n2 = normalize([n1,n2])
 
         # Yield the exact match record with names in either
         # direction.
-        yield fmtOutput(s, [n1, n2], bdate, exactMatch=True)
-        yield fmtOutput(s, [n2, n1], bdate, exactMatch=True)
+        yield fmtOutput(s, n1, n2, bdate, exactMatch=True)
+        yield fmtOutput(s, n2, n1, bdate, exactMatch=True)
 
         # Run through partial match permutations
         if partialMatchNames:
@@ -406,7 +419,7 @@ def replace(orig, year=None, month=None, day=None):
     except ValueError:
         return None
 
-def protectEntry(name1, name2, birthdate, debug=True):
+def protectEntry(name1, name2, birthdate, debug=False):
     """
     Protects a single record of demographic info by applying SHA512.
     """    
