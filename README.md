@@ -56,6 +56,10 @@ Processed 4 uploaded records against 10 registry entries
 ```
 
 ## To create your own registry
+- Clone this registry (use the clone button on GitHub) to make your own copy.
+- Clone that registry unto your desktop computer.
+- Create new keys
+
 Run the new keys command:
 ```
 python xcheck.py newkeys
@@ -71,13 +75,9 @@ mv registry-public.pem settings/registry-public.pem
 mv registry-private.pem ~/.ssh/registry-private.pem
 ```
 
-On MacOS/Linux, run the move command:
-```
-mv registry-public.pem settings/registry-public.pem
-mv registry-private.pem ~/.ssh/registry-private.pem
-```
+On Windows, drag-and-drop files into the directories above. The public key will be in the `settings/` directory and will become part of the public repository. The private key is outside the repository so that it doesn't become public.
 
-On Windows, drag-and-drop files into these directories.
+Commit these changes, push them to GitHub, and check GitHub to make sure the public key is there.
 
 # Instructions for testing, debugging, and validation
 
