@@ -9,3 +9,4 @@ settings/protected-registry
 .DS_Store
 settings/errorLog
 settings/protected-registry.csv
+errors/*
