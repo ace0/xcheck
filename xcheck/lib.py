@@ -6,6 +6,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256, SHA512
 from base64 import urlsafe_b64encode as b64enc, urlsafe_b64decode as b64dec
+from collections import namedtuple
 from datetime import datetime, date
 from shutil import copyfile
 import binascii, csv, json, os
@@ -16,14 +17,7 @@ import binascii, csv, json, os
 
 # Constants
 defaultSettingsFile = 'settings/settings.json'
-# defaultSettings = {
-#     "registryPrivkeyfile": "~/.ssh/registry-private.pem", 
-#     "registryPubkeyfile": "settings/registry-public.pem", 
-#     "protectedFile": "./protected.jee",
-#     "registryFile": "settings/protected-registry.csv",
-#     "errorDir": "errors",
-#     "errorLog": "settings/errorLog"
-#     }
+protectedRecordHeader = "recordId,exactMatch,siteId,hash"
 
 def loadSettings(settingsfile=defaultSettingsFile):
     """
@@ -123,82 +117,89 @@ def match(reportingTxt, exactMatchTable, partialMatchTable):
     Matches reported protected entries against exact and partial 
     dictionaries from the registry.
     """
-    def printMatch(matchType, entry, reportingSite, registrySite):
-        printLines("Found {} match: {}".format(matchType, entry),
-            "  Reporting site: {}".format(reportingSite),
-            "  Registry site:  {}".format(registrySite),
-            "")
+    # Keep a list of which record IDs have been matched so we don't 
+    # perform duplicative matching.
+    recordsMatched = set()
+    recordCount = 0
+
+    # Keep a list of all errors encountered
+    errors = []
 
     # Process the registry entries against the protected entries
-    recordCount = 0
-    anyMatchFound = False
-    for group in groupReportedRecords(parseReportedRecords(reportingTxt)):
-        recordCount += len(group)
-        for reportingSite,entry in group:
-            # Check for a match in one of the registry dictionaries
-            def checkMatch(registry, matchType):
-                if entry not in registry:
-                    return False
-                printMatch(matchType, entry, 
-                    reportingSite=reportingSite, 
-                    registrySite=registry[entry])
-                anyMatchFound = True
-                return True
+    for record in parseReportedRecords(reportingTxt):
+        recordCount += 1
 
-            # First check for an exact match
-            if checkMatch(exactMatchTable, "exact"):
-                # Any match means stop process this group of entries
-                break
+        # Log and report any errors
+        if record.err:
+            print record.err
+            print "Skiping record\n\n"
+            errors.append(record.err)
+            continue
 
-            # Then a partial match
-            if checkMatch(partialMatchTable, "partial"):
-                # Any match means stop process this group of entries
-                break
+        # Skip any records that have already been matched with this
+        # record ID
+        if record.recordId in recordsMatched:
+            continue
 
+        # Print a match and record the record ID
+        def reportMatch(table, isExactMatch):
+            # Grab the record ID and site ID from the table
+            _, registrySiteId = table[record.hash]
+
+            if isExactMatch:
+                matchType = "exact"
+            else:
+                matchType = "partial"
+
+            # Print a message
+            printLines("Found {} match: {}".format(matchType, record.hash),
+                "  Reporting site: {}".format(record.siteId),
+                "  Registry site:  {}".format(registrySiteId),
+                "")
+
+            # Record the record ID
+            recordsMatched.add(record.recordId)
+
+        # First check for an exact match
+        if record.hash in exactMatchTable:
+            reportMatch(exactMatchTable, record.isExact)
+
+        # Then a partial match
+        elif record.hash in partialMatchTable:
+            reportMatch(partialMatchTable, isExactMatch=False)
+
+    anyMatchFound = len(recordsMatched) > 0
     return (recordCount, anyMatchFound)
-
-def groupReportedRecords(recordIterator):
-    """
-    Groups protectedEntry into lists so that the first item is always an
-    exact match entry followed by any partial match entries.
-    yields: [(siteId,protectedEntry), (siteId,protectedEntry),...] 
-    """
-    group = []
-    for isExact,siteId,entry in recordIterator:
-        # Exact match marks the start of a new group. Yield any previous group
-        # and reset
-        if isExact:
-            yield group
-            group = []
-        group.append((siteId,entry))
-    # Yield the final group
-    yield group
 
 def parseReportedRecords(reportingTxt):
     """
-    Parses reported text into rows and fields. Prints any parsing errors
-    and discard these records.
-    yields: isExactMatch,siteId,protectedEntry
+    Parses reported text into individual protected records.
+    @yields: ProtectedRecord
     """
-    rowCount = 0
-    for row in reportingTxt.split("\n"):
-        rowCount += 1
-        err,isExact,reportingSiteId,protectedEntry = parseRow(row)
+    # BUG: Where is header parsing?
 
-        # Report errors
-        if err is not None:
-            printLines("Found a problem in line number {}: {}".format(
-                rowCount, err), 
-                "  Original record is: {}".format(row),
-                "  Skipping this record", 
-                "")
-            continue
-        yield isExact,reportingSiteId,protectedEntry
+    # BUG: These errors are not bubbling up and being reported in the 
+    # cmdline error processing/logging/segregating code
+    ProtectedRecord = protectedRecordFactory()
+    lineNumber = 0
+    for row in reportingTxt.split("\n"):
+        lineNumber += 1
+        record = parseRow(row)
+
+        # Add formatting and line number to error message
+        if record.err is not None:
+            err = fmtParseError(lineNumber, row, record.err)
+            record = ProtectedRecord(err=err, 
+                recordId=record.recordId,
+                siteId=record.siteId, 
+                isExact=record.isExact)
+
+        yield record
 
 def readProtectedRegistry(protectedRegistryFile):
     """
     Reads records from a protected registry and divides into two dictionaries
-    that map record->siteId.
+    that map record->(recordId, siteId).
     @return: (exactMatchDict, partialMatchDict)
     """
     exactMatch, partialMatch = {}, {}
@@ -206,42 +207,57 @@ def readProtectedRegistry(protectedRegistryFile):
     with open(protectedRegistryFile, "r") as f:
         # Verify the header row is as expected as a sanity check
         hdr = f.readline().strip()
-        if hdr != "exactMatch,siteId,protectedEntry":
-            raise err(ValueError, """The file '{}' is incorrectly formatted. 
-                Header row does not match expected header row.""",
+        if hdr != protectedRecordHeader:
+            raise error(ValueError, "The file '{}' is incorrectly formatted."\
+                " Header row does not match expected header row.",
                 protectedRegistryFile)
 
-        rowCnt = 1
+        lineNumber = 1
         for row in f:
-            rowCnt += 1
-            err, isExact, siteId, protectedEntry = parseRow(row)
+            lineNumber += 1
+            record = parseRow(row)
 
-            if err is not None:
-                printLines("Could not parse row {} -- skipping record.".format(rowCnt), 
-                 " Problem was: " + err) 
+            if record.err is not None:
+                print fmtParseError(lineNumber, row, record.err)
                 continue
 
             # Insert into the correct dictionary
-            if isExact:
-                exactMatch[protectedEntry] = siteId
+            tableEntry = (record.recordId, record.siteId)
+            if record.isExact:
+                exactMatch[record.hash] = tableEntry
             else:
-                partialMatch[protectedEntry] = siteId        
+                partialMatch[record.hash] = tableEntry
 
     return exactMatch, partialMatch
+
+def fmtParseError(lineNumber, row, err):
+    return "Could not parse line {}: {}\nError is: {}\n".format(
+    lineNumber, row, record.row)
 
 def parseRow(txt):
     """
     Process a row that contains protected demographic information.
-    @returns: (err, isExact, siteId, protectedEntry)
+    @returns: namedtuple.ProtectedRecord(err, 
+        recordId, isExact, siteId, hash)
     """
+    ProtectedRecord = protectedRecordFactory()
+    
     # Split and verify each row
     columns = txt.strip().split(",")
-    if len(columns) != 3:
-        err = "Expected 3 columns, but found {}".format(len(columns))
-        return err, None, None, None
+    if len(columns) != 4:
+        err = "Expected 4 columns, but found {} columns".format(len(columns))
+        return ProtectedRecord(err=err)
 
     # Pull out fields 
-    isExactTxt, siteId, entry = columns
+    recordIdTxt, isExactTxt, siteId, entry = columns
+
+    # Parse recordId
+    try:
+        recordId = int(recordIdTxt)
+    except ValueError:
+        err = "Couldn't convert record ID '{}' to an integer value".format(
+            recordIdTxt)
+        return ProtectedRecord(err=err)
 
     # Parse isExact
     if isExactTxt.lower() == "true":
@@ -249,12 +265,16 @@ def parseRow(txt):
     elif isExactTxt.lower() == "false":
         isExact = False
     else:
-        err = "Unknown matching identifier in first column. " + \
-            "Expected: [True|False] but found {}.".format(isExact)
-        return err, None, None, None
+        err = "Unknown matching identifier in first column. Expected: "\
+            "[True|False] but found {}.".format(isExact)
+        return ProtectedRecord(err=err)
 
-    # Look good
-    return None, isExact, siteId, entry
+    # Looks good
+    return ProtectedRecord(None, recordId, isExact, siteId, entry)
+
+def protectedRecordFactory():
+    return namedtuple("ProtectedRecord", 
+        "err recordId isExact siteId hash")
 
 ###
 #
@@ -265,65 +285,102 @@ def processRegistry(registryCsvfile, registryOutfile):
     Processes a registry CSV and produces a new file containing protected
     records.
     """
+    # We apply all the alternate matching logic when producing
+    # the registry
+    protectedRecords = lambda: protectAndFormat(registryCsvfile,
+        reverseNames=True, 
+        includeAltNames=True, 
+        includeAltDates=True)
+
     with open(registryOutfile, "w") as f:
-        f.write("exactMatch,siteId,protectedEntry\n")
+        # Write the CSV header
+        f.write(protectedRecordHeader + "\n")
 
-        for entry in protectAndFormat(registryCsvfile, partialMatchDates=True, 
-            partialMatchNames=True):
-            f.write(entry)
-            f.write("\n")
+        # Write each protected entry to the CSV file
+        for entry in protectedRecords():
+            f.write(entry + "\n")
 
-def processReports(inputfile, outfile, recipientKeyfile, debug=False):
+def processReports(inputfile, outfile, recipientKeyfile, debug=True):
     """
     Process (and validate) and file of demographic info and create an
     encrypted output file that contains protected records and is encrypted
     under the key retrieved from the file.
     """
+    # For site reporting, we include alternate names (first initials)
+    # so they can be partially matched at the registry.
+    # The other alternates forms don't need to be produced, they'll
+    # be matched automatically if an input error was made 
+    # (day-month swap, etc)
+    protectedRecords = lambda: protectAndFormat(inputfile,
+        reverseNames=False, 
+        includeAltNames=True,
+        includeAltDates=False)
+
     # Generate an entire protected record CSV in-memory
-    txt = "\n".join([x for x in protectAndFormat(inputfile, 
-        partialMatchDates=False, partialMatchNames=True)])
+    csvTxt = "\n".join([x for x in protectedRecords()])
 
     if debug:
-        print txt
+        print csvTxt
 
-    # Encrypt the contents and write it to a file
+    # Encrypt the contents and write the encrypted version to a file
+    # in JEE format (JSON Encrypted Envelope)
     with open(outfile, "w") as f:
-        f.write(publicKeyEncrypt(recipientKeyfile, txt))
+        f.write(publicKeyEncrypt(recipientKeyfile, csvTxt))
 
-def protectAndFormat(inputfile, partialMatchDates, partialMatchNames):
+def protectAndFormat(inputfile, reverseNames, includeAltNames, 
+    includeAltDates):
     """
     Reads and validates a CSV of demographic info and yields formatted
-    records with demographic information processed with the protectedEntry
-    function.
+    records with demographic information processed with the hash
+    function. 
 
-    if partialMatch=True, partial match permutations are applied to each record.
+    Caller provides True/False to indicate the following:
 
-    yields: (isExactInfo, siteId, b64ProtectedEntry) 
+    reverseNames: return an exact match record with names in each order
+        (name1,name2) and (name2,name2)
+
+    includeAltNames: produce partial matching records with alternate names 
+        (like first initials)
+
+    includeAltDates: produce partial matching records with alternate
+        birthdates (day-month swap, day +-, year+-)
+
+    yields: a single record (line) for a CSV file
     """
     # Process validates entries read from the input file
+    recordId = -1
     for (s,n1,n2,bdate) in enumerateCsv(inputfile):
+        # BUG: Names are reversed for both the registry and the site 
+        # reporting
+        # file but needs to be only one or the other. Need a switch in the
+        # parameter and adjust the call sites.
+
+        recordId += 1
         n1,n2 = normalize([n1,n2])
 
-        # Yield the exact match record with names in either
-        # direction.
-        yield fmtOutput(s, n1, n2, bdate, exactMatch=True)
-        yield fmtOutput(s, n2, n1, bdate, exactMatch=True)
+        # Yield the exact match records
+        yield fmtOutput(recordId, s, n1, n2, bdate, exactMatch=True)
+
+        if reverseNames:
+            yield fmtOutput(recordId, s, n2, n1, bdate, exactMatch=True)
 
         # Run through partial match permutations
-        if partialMatchNames:
+        if includeAltNames:
             for altn1,altn2 in alternateNames(n1,n2):
-                yield fmtOutput(s, altn1, altn2, bdate, exactMatch=False)
+                yield fmtOutput(recordId, s, altn1, altn2, bdate, 
+                    exactMatch=False)
 
-        if partialMatchDates:
+        if includeAltDates:
             for altBdate in alternateDates(bdate):
-                yield fmtOutput(s, n1, n2, altBdate, exactMatch=False)
+                yield fmtOutput(recordId, s, n1, n2, altBdate, 
+                    exactMatch=False)
 
-def fmtOutput(siteId, name1, name2, bdate, exactMatch):
+def fmtOutput(recordId, siteId, name1, name2, bdate, exactMatch):
     """
     Formats a protected CSV entry:
-    @returns "isExactMatch,siteId,b64ProtectedEntry"
+    @returns "recordId,isExactMatch,siteId,b64ProtectedEntry"
     """
-    return '{},{},{}'.format(str(exactMatch), siteId, 
+    return '{},{},{},{}'.format(str(recordId),str(exactMatch), siteId, 
         protectEntry(name1, name2, bdate))
 
 def enumerateCsv(inputfile):
@@ -338,7 +395,7 @@ def enumerateCsv(inputfile):
         # Verify the header row is as expected as a sanity check
         hdr = reader.next()
         if hdr != ["siteId", "name1", "name2", "birthdate"]:
-            raise err(ValueError, """The file '{}' is incorrectly formatted. 
+            raise error(ValueError, """The file '{}' is incorrectly formatted. 
                 Header row does not match expected header row.""",
                 inputfile)
 
@@ -411,7 +468,7 @@ def replace(orig, year=None, month=None, day=None):
     except ValueError:
         return None
 
-def protectEntry(name1, name2, birthdate, debug=False):
+def protectEntry(name1, name2, birthdate, debug=True):
     """
     Protects a single record of demographic info by applying SHA512.
     """    
@@ -642,7 +699,7 @@ def dt(txt, fmt='%Y-%m-%d'):
     """
     return datetime.strptime(txt, fmt).date()
 
-def err(errorType, msg, *args, **kwargs):
+def error(errorType, msg, *args, **kwargs):
     """
     Quickly build an error or exception with a formatted message.
     """
