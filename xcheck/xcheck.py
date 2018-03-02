@@ -4,7 +4,7 @@ registry from demographic information and process encrypted uploads
 and match them against the registry.
 """
 from lib import (loadSettings, createPubkeyPair, processJee, processRegistry,
-  printLines, noteError)
+  printLines, noteError, FileProcessingError)
 import fire
 import platform, sys
 
@@ -53,7 +53,16 @@ class XCheckCli():
     """
     settings = loadSettings()
     output = output or settings["registryFile"]
-    processRegistry(registryCsvfile=registry_csv, registryOutfile=output)
+
+    try:
+      processRegistry(registryCsvfile=registry_csv, registryOutfile=output)
+    except FileProcessingError as e:
+      noteError(srcfile=registry_csv, 
+        errMsg=str(e), 
+        settings=settings, 
+        cmd="xcheck hash", 
+        terminate=True)
+
     print "Created protected registry: {}".format(output)
 
   def process(self, protected_jee, registry=None, privkey=None,):
@@ -64,15 +73,15 @@ class XCheckCli():
     registry = registry or settings["registryFile"]
     privkey = privkey or settings["registryPrivkeyfile"]
 
-    # try:
-    err = processJee(jeeFile=protected_jee, protectedRegistryFile=registry, 
-      privkeyFile=privkey)
-    # except Exception as e:
-    #   err = str(e)
-
-    if err is not None:
-      noteError(srcfile=protected_jee, errMsg=err, settings=settings, 
-        cmd="xcheck process", terminate=True)
+    try:
+      err = processJee(jeeFile=protected_jee, protectedRegistryFile=registry, 
+        privkeyFile=privkey)
+    except FileProcessingError as e:
+      noteError(srcfile=protected_jee, 
+        errMsg=str(e), 
+        settings=settings, 
+        cmd="xcheck process", 
+        terminate=True)
 
 def moveCmd():
   """

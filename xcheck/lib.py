@@ -18,6 +18,7 @@ import binascii, csv, json, os
 # Constants
 defaultSettingsFile = 'settings/settings.json'
 protectedRecordHeader = "recordId,exactMatch,siteId,hash"
+headerRowMismatchError = "Header row does not match expected header"
 
 def loadSettings(settingsfile=defaultSettingsFile):
     """
@@ -74,8 +75,8 @@ def noteError(srcfile, errMsg, cmd, settings, terminate):
             "'{}' with command '{}': {}\n".format(
                 datetime.now(), 
                 filename, 
-                errMsg,
-                cmd)
+                cmd,
+                errMsg)
             )
     # Put a copy of the problematic file in the errorfile location
     copyfile(srcfile, os.path.join(settings["errorDir"], filename))
@@ -88,6 +89,12 @@ def noteError(srcfile, errMsg, cmd, settings, terminate):
 # Process JEE files against a registry.csv
 
 def processJee(jeeFile, protectedRegistryFile, privkeyFile):
+    """
+    Process an uploaded reported as an encrypted file containing a CSV of 
+    protected check-in records. Prints results to stdout
+    @raise: FileProcessingError if any problems are encountered with the 
+       input files.
+    """
     # Read the protected registry contents into memory
     exact, partial = readProtectedRegistry(protectedRegistryFile)
 
@@ -96,12 +103,13 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
         jeeText = f.read()
 
     # Decrypt and verify the JEE contents
-    err, reportingTxt = publicKeyDecrypt(privkeyFile, jeeText)
-    if err is not None:
-        return err
+    reportingTxt = publicKeyDecrypt(privkeyFile, jeeText)
 
+    # Performing matching against the protected checkin records and the 
+    # protected registry.
     recordCount, matchFound = match(reportingTxt, exact, partial)
 
+    # Print results
     print "Processed {} uploaded records against {} registry entries".format(
         recordCount, len(exact))
     if matchFound == False:
@@ -244,7 +252,7 @@ def processReports(inputfile, outfile, recipientKeyfile, debug=False):
 def parseProtectedRecords(recordIterator):
     """
     Reads raw strings from a record iterator and parses them as rows in a 
-    protected record file. Any parse errors raise a FileParseError.
+    protected record file. Any parse errors raise a FileProcessingError.
     @yields: ProtectedRecord
     """
     # Check the header on the first pass
@@ -257,15 +265,14 @@ def parseProtectedRecords(recordIterator):
         # Verify the header row is well-formed
         if hdr:
             if row != protectedRecordHeader:
-                raise FileParseError("Header row does not match expected "\
-                    "header")
+                raise FileProcessingError(headerRowMismatchError)
             hdr = False
             continue
 
         # Parse each row and check for errors
         record = parseRow(row)
         if record.err is not None:
-            raise FileParseError(fmtParseError(lineNumber, row, record.err))
+            raise FileProcessingErrorfmtParseError(lineNumber, row, record.err)
 
         yield record
 
@@ -378,9 +385,7 @@ def enumerateCsv(inputfile):
         # Verify the header row is as expected as a sanity check
         hdr = reader.next()
         if hdr != ["siteId", "name1", "name2", "birthdate"]:
-            raise error(ValueError, """The file '{}' is incorrectly formatted. 
-                Header row does not match expected header row.""",
-                inputfile)
+            raise FileProcessingError(headerRowMismatchError)
 
         # Then, process each line as a query
         for [siteId, name1, name2, birthdate] in reader:
@@ -389,8 +394,8 @@ def enumerateCsv(inputfile):
 def alternateNames(n1,n2):
     """
     Produces alternate names for partial matching:
-    name1-initial + name2
-    name2-initial + name1
+    name1-initial4 + name2
+    name2-initial4 + name1
     """
     yield n1[:4] + n2, None
     yield n2[:4] + n1, None
@@ -505,7 +510,7 @@ def scrubSuffixes(name):
          names = names[0:]
     return ' '.join(names)
 
-class FileParseError(Exception):
+class FileProcessingError(Exception):
     """
     Indicates that an input file failed parsing or verification and should
     be discarded.
@@ -559,9 +564,9 @@ def publicKeyDecrypt(privkeyFile, jee):
         return (publicKeyDecryptError, None)
 
     # Verify the JEE and extract the encrypted message
-    err, encMsg = decodeAndVerifyJee(privkey.publickey(), jee)
-    if err:
-        return (err, None)
+    # This call raises an exception if there are any decoding issues or
+    # verification failures.
+    encMsg = decodeAndVerifyJee(privkey.publickey(), jee)
 
     # Separate the encrypted message key from the symmetric-encrypted portion.
     encKey, ctext = encMsg[:encMsgKeyBytes], encMsg[encMsgKeyBytes:]
@@ -571,9 +576,9 @@ def publicKeyDecrypt(privkeyFile, jee):
 
     # Recover the underlying message
     try:
-        return (None, aesDescrypt(msgKey, ctext))
+        return aesDescrypt(msgKey, ctext)
     except ValueError:
-        return (decryptionFailedError, None)
+        raise FileProcessingError(decryptionFailedError)
 
 def createJee(pubkey, encMsg):
     """
@@ -599,13 +604,14 @@ def decodeAndVerifyJee(pubkey, jeeText):
     """
     Parses and verifies a JSON encryption envelope against our default settings.
     Verifies the pubkey fingerprint against the pubkey provided.    
-    Returns: (err, enc_data)
+    @return enc_data
+    @raise FileProcessingError if any problems are found
     """
     env = {}
     try:
         env = json.loads(jeeText)
-    except ValueError as err:
-        return (str(err), None)
+    except ValueError as e:
+        raise FileProcessingError("Failed to parse JSON: " + str(e))
 
     expectedFpB64 = b64enc(pkFingerprint(pubkey))
 
@@ -615,21 +621,21 @@ def decodeAndVerifyJee(pubkey, jeeText):
 
     # Check for expected fields and values
     if not check("typ", "jee"):
-        return (None, "Unknown packaging type -- expected typ=jee")
+        raise FileProcessingError("Unknown packaging type -- expected typ=jee")
 
     if not check("alg", "RSA-PKCS1-OAEP-AES128-GCM"):
-        return (None, "Unknown encryption algorithm -- expected alg='RSA-PKCS1-OAEP-AES128-GCM'")
+        raise FileProcessingError("Unknown encryption algorithm -- expected alg='RSA-PKCS1-OAEP-AES128-GCM'")
 
     if not check("pk_fp_alg", "PEM-SHA256"):
-        return (None, "Unknown public key fingerprint algorithm -- expected pk_fp_alg='PEM-SHA256'")
+        raise FileProcessingError("Unknown public key fingerprint algorithm -- expected pk_fp_alg='PEM-SHA256'")
 
     if not check("pk_fp", expectedFpB64):
-        return (None, "Public key fingerprint mismatch.")
+        raise FileProcessingError("Public key fingerprint mismatch.")
 
     if not "enc_msg" in env or len(env["enc_msg"]) == 0:
-        return (None, "Encrypted message is missing or empty (enc_msg)")
+        raise FileProcessingError("Encrypted message is missing or empty (enc_msg)")
 
-    return None, b64dec(str(env["enc_msg"]))
+    return b64dec(str(env["enc_msg"]))
 
 def pkFingerprint(pubkey):
     """
