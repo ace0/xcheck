@@ -32,11 +32,6 @@ def loadSettings(settingsfile=defaultSettingsFile):
     except ValueError as e:
         printSettingsError(settingsfile, e)
 
-    # Start with the default settings and overwrite any settings
-    # read from the file.
-    # settings = defaultSettings.copy()
-    # settings.update(settingsFromFile)
-
     # Expand all paths
     for k,path in settings.iteritems():
         path = os.path.expanduser(os.path.expandvars(path))
@@ -112,6 +107,31 @@ def processJee(jeeFile, protectedRegistryFile, privkeyFile):
     if matchFound == False:
         print "No matches found"
 
+def readProtectedRegistry(protectedRegistryFile):
+    """
+    Reads records from a protected registry and divides into two dictionaries
+    that map record->(recordId, siteId).
+    @return: (exactMatchDict, partialMatchDict)
+    """
+    exactMatch, partialMatch = {}, {}
+
+    # Iterate the protected registry file one line at a time
+    def regReader():
+        with open(protectedRegistryFile, 'r') as f:
+            for line in f:
+                yield line.strip()
+
+    # Divide the registry records by exact and partial matches
+    for record in parseProtectedRecords(regReader()):
+        # Insert into the correct dictionary
+        if record.isExact:
+            table = exactMatch
+        else:
+            table = partialMatch
+        table[record.hash] = record.siteId
+
+    return exactMatch, partialMatch
+
 def match(reportingTxt, exactMatchTable, partialMatchTable):
     """
     Matches reported protected entries against exact and partial 
@@ -125,16 +145,14 @@ def match(reportingTxt, exactMatchTable, partialMatchTable):
     # Keep a list of all errors encountered
     errors = []
 
-    # Process the registry entries against the protected entries
-    for record in parseReportedRecords(reportingTxt):
-        recordCount += 1
+    # Iterator over individual lines in our reporting file
+    def reportReader():
+        for line in reportingTxt.split("\n"):
+            yield line
 
-        # Log and report any errors
-        if record.err:
-            print record.err
-            print "Skiping record\n\n"
-            errors.append(record.err)
-            continue
+    # Process the registry entries against the protected entries
+    for record in parseProtectedRecords(reportReader()):
+        recordCount += 1
 
         # Skip any records that have already been matched with this
         # record ID
@@ -143,8 +161,8 @@ def match(reportingTxt, exactMatchTable, partialMatchTable):
 
         # Print a match and record the record ID
         def reportMatch(table, isExactMatch):
-            # Grab the record ID and site ID from the table
-            _, registrySiteId = table[record.hash]
+            # Grab the registry site ID from the table
+            registrySiteId = table[record.hash]
 
             if isExactMatch:
                 matchType = "exact"
@@ -171,64 +189,85 @@ def match(reportingTxt, exactMatchTable, partialMatchTable):
     anyMatchFound = len(recordsMatched) > 0
     return (recordCount, anyMatchFound)
 
-def parseReportedRecords(reportingTxt):
+
+###
+#
+# Operate on files containing demographic info in CSV format
+
+def processRegistry(registryCsvfile, registryOutfile):
     """
-    Parses reported text into individual protected records.
+    Processes a registry CSV and produces a new CSV file containing protected
+    records.
+    """
+    # We apply _all_ of the alternate matching logic when producing
+    # the registry
+    iterator = protectAndFormat(
+        registryCsvfile,
+        reverseNames=True, 
+        includeAltNames=True, 
+        includeAltDates=True)
+
+    # Write each protected record to the CSV file
+    with open(registryOutfile, "w") as f:
+        for entry in iterator:
+            f.write(entry + "\n")
+
+def processReports(inputfile, outfile, recipientKeyfile, debug=False):
+    """
+    Process (and validate) and file of demographic info and create an
+    encrypted output file that contains protected records and is encrypted
+    under the key retrieved from the file.
+    """
+    # For site reporting, we include alternate names (first initials)
+    # so they can be partially matched at the registry.
+    # The other alternates forms don't need to be produced, they'll
+    # be matched automatically if an input error was made 
+    # (day-month swap, etc)
+    iterator = protectAndFormat(
+        inputfile,
+        reverseNames=False, 
+        includeAltNames=True,
+        includeAltDates=False)
+
+    # Generate an entire CSV of protected records in memory so they
+    # can be encrypted
+    csvTxt = "\n".join([x for x in iterator])
+
+    if debug:
+        print csvTxt
+
+    # Encrypt the contents and write the encrypted version to a file
+    # in JEE format (JSON Encrypted Envelope)
+    with open(outfile, "w") as f:
+        f.write(publicKeyEncrypt(recipientKeyfile, csvTxt))
+
+def parseProtectedRecords(recordIterator):
+    """
+    Reads raw strings from a record iterator and parses them as rows in a 
+    protected record file. Any parse errors raise a FileParseError.
     @yields: ProtectedRecord
     """
-    # BUG: Where is header parsing?
+    # Check the header on the first pass
+    hdr = True
 
-    # BUG: These errors are not bubbling up and being reported in the 
-    # cmdline error processing/logging/segregating code
-    ProtectedRecord = protectedRecordFactory()
-    lineNumber = 0
-    for row in reportingTxt.split("\n"):
+    lineNumber = -1
+    for row in recordIterator:
         lineNumber += 1
-        record = parseRow(row)
 
-        # Add formatting and line number to error message
+        # Verify the header row is well-formed
+        if hdr:
+            if row != protectedRecordHeader:
+                raise FileParseError("Header row does not match expected "\
+                    "header")
+            hdr = False
+            continue
+
+        # Parse each row and check for errors
+        record = parseRow(row)
         if record.err is not None:
-            err = fmtParseError(lineNumber, row, record.err)
-            record = ProtectedRecord(err=err, 
-                recordId=record.recordId,
-                siteId=record.siteId, 
-                isExact=record.isExact)
+            raise FileParseError(fmtParseError(lineNumber, row, record.err))
 
         yield record
-
-def readProtectedRegistry(protectedRegistryFile):
-    """
-    Reads records from a protected registry and divides into two dictionaries
-    that map record->(recordId, siteId).
-    @return: (exactMatchDict, partialMatchDict)
-    """
-    exactMatch, partialMatch = {}, {}
-
-    with open(protectedRegistryFile, "r") as f:
-        # Verify the header row is as expected as a sanity check
-        hdr = f.readline().strip()
-        if hdr != protectedRecordHeader:
-            raise error(ValueError, "The file '{}' is incorrectly formatted."\
-                " Header row does not match expected header row.",
-                protectedRegistryFile)
-
-        lineNumber = 1
-        for row in f:
-            lineNumber += 1
-            record = parseRow(row)
-
-            if record.err is not None:
-                print fmtParseError(lineNumber, row, record.err)
-                continue
-
-            # Insert into the correct dictionary
-            tableEntry = (record.recordId, record.siteId)
-            if record.isExact:
-                exactMatch[record.hash] = tableEntry
-            else:
-                partialMatch[record.hash] = tableEntry
-
-    return exactMatch, partialMatch
 
 def fmtParseError(lineNumber, row, err):
     return "Could not parse line {}: {}\nError is: {}\n".format(
@@ -240,7 +279,8 @@ def parseRow(txt):
     @returns: namedtuple.ProtectedRecord(err, 
         recordId, isExact, siteId, hash)
     """
-    ProtectedRecord = protectedRecordFactory()
+    ProtectedRecord =  namedtuple("ProtectedRecord", 
+        "err recordId isExact siteId hash")
     
     # Split and verify each row
     columns = txt.strip().split(",")
@@ -272,61 +312,6 @@ def parseRow(txt):
     # Looks good
     return ProtectedRecord(None, recordId, isExact, siteId, entry)
 
-def protectedRecordFactory():
-    return namedtuple("ProtectedRecord", 
-        "err recordId isExact siteId hash")
-
-###
-#
-# Operate on files containing demographic info in CSV format
-
-def processRegistry(registryCsvfile, registryOutfile):
-    """
-    Processes a registry CSV and produces a new file containing protected
-    records.
-    """
-    # We apply all the alternate matching logic when producing
-    # the registry
-    protectedRecords = lambda: protectAndFormat(registryCsvfile,
-        reverseNames=True, 
-        includeAltNames=True, 
-        includeAltDates=True)
-
-    with open(registryOutfile, "w") as f:
-        # Write the CSV header
-        f.write(protectedRecordHeader + "\n")
-
-        # Write each protected entry to the CSV file
-        for entry in protectedRecords():
-            f.write(entry + "\n")
-
-def processReports(inputfile, outfile, recipientKeyfile, debug=True):
-    """
-    Process (and validate) and file of demographic info and create an
-    encrypted output file that contains protected records and is encrypted
-    under the key retrieved from the file.
-    """
-    # For site reporting, we include alternate names (first initials)
-    # so they can be partially matched at the registry.
-    # The other alternates forms don't need to be produced, they'll
-    # be matched automatically if an input error was made 
-    # (day-month swap, etc)
-    protectedRecords = lambda: protectAndFormat(inputfile,
-        reverseNames=False, 
-        includeAltNames=True,
-        includeAltDates=False)
-
-    # Generate an entire protected record CSV in-memory
-    csvTxt = "\n".join([x for x in protectedRecords()])
-
-    if debug:
-        print csvTxt
-
-    # Encrypt the contents and write the encrypted version to a file
-    # in JEE format (JSON Encrypted Envelope)
-    with open(outfile, "w") as f:
-        f.write(publicKeyEncrypt(recipientKeyfile, csvTxt))
-
 def protectAndFormat(inputfile, reverseNames, includeAltNames, 
     includeAltDates):
     """
@@ -347,14 +332,12 @@ def protectAndFormat(inputfile, reverseNames, includeAltNames,
 
     yields: a single record (line) for a CSV file
     """
+    # Start with a header row
+    yield protectedRecordHeader 
+
     # Process validates entries read from the input file
     recordId = -1
     for (s,n1,n2,bdate) in enumerateCsv(inputfile):
-        # BUG: Names are reversed for both the registry and the site 
-        # reporting
-        # file but needs to be only one or the other. Need a switch in the
-        # parameter and adjust the call sites.
-
         recordId += 1
         n1,n2 = normalize([n1,n2])
 
@@ -468,7 +451,7 @@ def replace(orig, year=None, month=None, day=None):
     except ValueError:
         return None
 
-def protectEntry(name1, name2, birthdate, debug=True):
+def protectEntry(name1, name2, birthdate, debug=False):
     """
     Protects a single record of demographic info by applying SHA512.
     """    
@@ -521,6 +504,14 @@ def scrubSuffixes(name):
     else:
          names = names[0:]
     return ' '.join(names)
+
+class FileParseError(Exception):
+    """
+    Indicates that an input file failed parsing or verification and should
+    be discarded.
+    """
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
 
 ###
 # 
